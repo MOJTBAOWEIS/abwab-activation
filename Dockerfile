@@ -9,7 +9,7 @@ COPY . .
 # The database lives on a mounted volume, never inside the image.
 ENV ABWAB_DB=/data/abwab.db
 ENV ABWAB_ENV=production
-VOLUME ["/data"]
+#VOLUME ["/data"]
 
 EXPOSE 8000
 CMD ["gunicorn", "wsgi:app", "--bind", "0.0.0.0:8000", \
