@@ -34,10 +34,22 @@ app.json.sort_keys = False
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=config.IS_PRODUCTION,
     PERMANENT_SESSION_LIFETIME=timedelta(days=14),
     MAX_CONTENT_LENGTH=1 * 1024 * 1024,
 )
+
+
+@app.before_request
+def _secure_cookie_for_this_request():
+    """Mark the session cookie Secure only when the request really is HTTPS.
+
+    A blanket SESSION_COOKIE_SECURE=True is a trap: the moment the app is
+    reached over plain HTTP — a misconfigured proxy, a health check, a local
+    smoke test — the browser silently discards the cookie. Sign-in then
+    "succeeds" and bounces straight back to the login form with no error at
+    all, which is impossible to diagnose from the outside.
+    """
+    app.config["SESSION_COOKIE_SECURE"] = request.is_secure
 
 if config.IS_PRODUCTION:
     # Behind a host's load balancer, so Flask sees the real scheme and host
@@ -71,7 +83,10 @@ def require(*roles):
             if not u or u["role"] not in roles:
                 if request.path.startswith("/api/"):
                     return jsonify({"error": "انتهت الجلسة — سجّل دخولك مرة أخرى"}), 401
-                return redirect(url_for("login", next=request.path))
+                # Say *why*. A silent redirect back to the sign-in form is the
+                # single most confusing thing this app can do to someone.
+                reason = "expired" if not u else "role"
+                return redirect(url_for("login", next=request.path, why=reason))
             return fn(*a, **kw)
         return inner
     return outer
@@ -101,11 +116,21 @@ def login():
             return redirect(nxt if nxt and nxt.startswith("/") else
                             home_for(session["role"]))
 
+    if not error:
+        why = request.args.get("why")
+        if why == "expired":
+            error = ("انتهت جلستك أو المتصفح ما حفظ تسجيل الدخول. "
+                     "سجّل دخولك مرة أخرى.")
+        elif why == "role":
+            error = "هذي الشاشة مو لحسابك. سجّل دخول بالحساب الصحيح."
+
     people = ([("MANAGER", "مدير المشروع", "Manager")]
               + [(c, settings.promoters()[c][0], "Promoter")
                  for c in settings.promoter_codes()]
               + [(c, settings.agents()[c], "Sales") for c in settings.agent_codes()])
-    return render_template("login.html", people=people, error=error), (401 if error else 200)
+    status = 401 if (error and request.method == "POST") else 200
+    return render_template("login.html", people=people, error=error,
+                           notice=request.args.get("why")), status
 
 
 @app.route("/logout")
@@ -885,7 +910,7 @@ def setup_promoter():
     conn.commit()
     conn.close()
     settings.invalidate()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "password_changed": pin is not None})
 
 
 @app.route("/api/setup/promoter/delete", methods=["POST"])
@@ -943,7 +968,7 @@ def setup_agent():
     conn.commit()
     conn.close()
     settings.invalidate()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "password_changed": pin is not None})
 
 
 @app.route("/api/setup/agent/delete", methods=["POST"])

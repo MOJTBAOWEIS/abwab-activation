@@ -280,15 +280,16 @@ def set_many(pairs):
 
 # ------------------------------------------------------------------ people
 
+def _build_branches():
+    conn = db.connect()
+    rows = conn.execute("SELECT * FROM branches ORDER BY sort, code").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def branches(active_only=False):
     """code -> name, in display order."""
-    def build():
-        conn = db.connect()
-        rows = conn.execute(
-            "SELECT * FROM branches ORDER BY sort, code").fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
-    rows = _cached("branches", build)
+    rows = _cached("branches", _build_branches)
     return {r["code"]: r["name"] for r in rows
             if r["active"] or not active_only}
 
@@ -298,40 +299,46 @@ def branch_rows():
     return _cache["branches"]
 
 
+def _build_promoters():
+    conn = db.connect()
+    rows = conn.execute("SELECT * FROM promoters ORDER BY code").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def promoters(active_only=False):
     """code -> (name, branch) — the shape the rest of the code expects."""
-    def build():
-        conn = db.connect()
-        rows = conn.execute("SELECT * FROM promoters ORDER BY code").fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
-    rows = _cached("promoters", build)
+    rows = _cached("promoters", _build_promoters)
     return {r["code"]: (r["name"], r["branch"]) for r in rows
             if r["active"] or not active_only}
 
 
 def promoter_rows():
-    promoters()
-    return _cache["promoters"]
+    # Read what the cache actually returned. Going back to _cache afterwards
+    # can raise KeyError if another request invalidated it in between.
+    return _cached("promoters", _build_promoters)
 
 
 def promoter_codes():
     return [r["code"] for r in promoter_rows() if r["active"]]
 
 
+def _build_agents():
+    conn = db.connect()
+    rows = conn.execute("SELECT * FROM agents ORDER BY code").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def agents(active_only=False):
-    def build():
-        conn = db.connect()
-        rows = conn.execute("SELECT * FROM agents ORDER BY code").fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
-    rows = _cached("agents", build)
+    rows = _cached("agents", _build_agents)
     return {r["code"]: r["name"] for r in rows if r["active"] or not active_only}
 
 
 def agent_rows():
-    agents()
-    return _cache["agents"]
+    # Read what the cache actually returned. Going back to _cache afterwards
+    # can raise KeyError if another request invalidated it in between.
+    return _cached("agents", _build_agents)
 
 
 def agent_codes():

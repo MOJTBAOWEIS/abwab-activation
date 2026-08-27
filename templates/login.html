@@ -25,7 +25,7 @@
   <div style="margin-bottom:22px" class="logo">تفعيل أبواب<span>نظام متابعة الليدات</span></div>
 
   <form method="post" class="card pad">
-    {% if error %}<div class="msg err">{{ error }}</div>{% endif %}
+    {% if error %}<div class="msg {{ "warn" if notice else "err" }}">{{ error }}</div>{% endif %}
 
     <div class="field">
       <label class="f" for="who">من أنت؟</label>
