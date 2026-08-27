@@ -11,5 +11,4 @@ ENV ABWAB_DB=/data/abwab.db
 ENV ABWAB_ENV=production
 #VOLUME ["/data"]
 
-EXPOSE 8000
 CMD gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60
