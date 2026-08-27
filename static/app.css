@@ -1,0 +1,253 @@
+/* Abwab Activation Tracker — shared shell.
+   Same palette as the tracking-plan document so the two read as one system. */
+
+:root{
+  --bg:#F1F4F3; --surface:#FFFFFF; --surface-2:#E9EEEC; --surface-3:#DFE7E4;
+  --border:#D6DFDC; --border-strong:#B4C4BF;
+  --text:#0F1D1B; --text-2:#3D4E4B; --muted:#637673;
+  --accent:#0B6B63; --accent-2:#08544E; --accent-soft:#DBEAE7;
+  --good:#15794F; --good-soft:#DCEDE3;
+  --warn:#8E6110; --warn-soft:#F2E7CE;
+  --bad:#A63C19; --bad-soft:#F4E0D6;
+  --oncolor:#FFFFFF;
+  --shadow:0 1px 2px rgba(15,29,27,.05), 0 8px 24px -16px rgba(15,29,27,.18);
+  --radius:8px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1312; --surface:#141D1C; --surface-2:#1A2524; --surface-3:#222E2C;
+    --border:#25332F; --border-strong:#374844;
+    --text:#E4EDEA; --text-2:#B4C5C1; --muted:#849693;
+    --accent:#52BBAE; --accent-2:#7FD2C7; --accent-soft:#123330;
+    --good:#4FBC8C; --good-soft:#0F3126;
+    --warn:#D8A84F; --warn-soft:#2E2716;
+    --bad:#E28359; --bad-soft:#33201A;
+    --oncolor:#0C1312;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1312; --surface:#141D1C; --surface-2:#1A2524; --surface-3:#222E2C;
+  --border:#25332F; --border-strong:#374844;
+  --text:#E4EDEA; --text-2:#B4C5C1; --muted:#849693;
+  --accent:#52BBAE; --accent-2:#7FD2C7; --accent-soft:#123330;
+  --good:#4FBC8C; --good-soft:#0F3126;
+  --warn:#D8A84F; --warn-soft:#2E2716;
+  --bad:#E28359; --bad-soft:#33201A;
+  --oncolor:#0C1312;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0; padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:"IBM Plex Sans Arabic","IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Arabic","IBM Plex Sans",system-ui,sans-serif;
+  font-weight:600; margin:0; letter-spacing:0;}
+.mono,code,.num{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace; font-variant-numeric:tabular-nums;}
+a{color:var(--accent)}
+button{font-family:inherit}
+
+/* ---------------- app bar ---------------- */
+.appbar{
+  position:sticky; top:0; z-index:40; background:var(--surface);
+  border-bottom:1px solid var(--border); padding:10px 18px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.appbar .brand{font-family:"IBM Plex Sans Arabic",sans-serif; font-weight:700; font-size:15px;}
+.appbar .brand span{color:var(--muted); font-weight:600; font-size:11px;
+  letter-spacing:.09em; text-transform:uppercase; display:block; margin-top:1px;}
+.appbar .spacer{flex:1}
+.appbar nav{display:flex; gap:4px; flex-wrap:wrap}
+.appbar nav a{
+  font-size:12.5px; color:var(--text-2); text-decoration:none;
+  padding:6px 11px; border-radius:6px; border:1px solid transparent;
+}
+.appbar nav a:hover{background:var(--surface-2)}
+.appbar nav a.on{background:var(--accent-soft); color:var(--accent); font-weight:600}
+
+.page{max-width:1280px; margin:0 auto; padding:22px 18px 90px}
+.page.narrow{max-width:560px}
+
+/* ---------------- generic ---------------- */
+.eyebrow{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); font-weight:600;}
+.section{margin:34px 0 0}
+.section > header{display:flex; align-items:baseline; gap:12px;
+  margin-bottom:12px; flex-wrap:wrap;}
+.section h2{font-size:18px}
+.section .hint{font-size:12.5px; color:var(--muted); max-width:70ch}
+
+.card{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow);}
+.pad{padding:16px 18px}
+
+.grid{display:grid; gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+
+/* ---------------- stat tiles ---------------- */
+.stat{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:13px 15px; box-shadow:var(--shadow);
+  display:flex; flex-direction:column; gap:2px; min-width:0;}
+.stat .k{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); font-weight:600;}
+.stat .v{font-family:"IBM Plex Sans Arabic",sans-serif; font-weight:700; font-size:25px;
+  letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1;}
+.stat .s{font-size:11.5px; color:var(--muted)}
+.stat.accent{border-inline-start:3px solid var(--accent)}
+.stat.good .v{color:var(--good)} .stat.warn .v{color:var(--warn)} .stat.bad .v{color:var(--bad)}
+.stat .v.empty{font-size:14px; font-weight:600; color:var(--muted);
+  font-family:"IBM Plex Sans",sans-serif; letter-spacing:0; padding:6px 0 4px;}
+
+/* ---------------- pills ---------------- */
+.pill{display:inline-block; font-size:10px; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; padding:2.5px 7px; border-radius:4px; white-space:nowrap;}
+.pill.good{background:var(--good-soft); color:var(--good)}
+.pill.warn{background:var(--warn-soft); color:var(--warn)}
+.pill.bad{background:var(--bad-soft); color:var(--bad)}
+.pill.neutral{background:var(--accent-soft); color:var(--accent)}
+.pill.mute{background:var(--surface-2); color:var(--muted)}
+
+/* ---------------- tables ---------------- */
+.tw{overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); box-shadow:var(--shadow);}
+table{border-collapse:collapse; width:100%; font-size:12.5px}
+th{text-align:start; font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); font-weight:600; padding:10px 12px; background:var(--surface-2);
+  border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0;}
+td{padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text-2);
+  vertical-align:middle;}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:end; font-variant-numeric:tabular-nums;
+  font-family:"IBM Plex Mono",monospace;}
+td strong{color:var(--text)}
+tbody tr:hover td{background:var(--surface-2)}
+.rank{color:var(--muted); font-size:11px; width:26px}
+
+/* ---------------- forms ---------------- */
+label.f{display:block; font-size:11px; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); font-weight:600; margin:0 0 6px}
+input,select,textarea{
+  width:100%; padding:11px 12px; font-size:15px; font-family:inherit;
+  background:var(--surface); color:var(--text);
+  border:1px solid var(--border-strong); border-radius:7px;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline-offset:-1px; border-color:var(--accent)}
+.field{margin-bottom:16px}
+.row{display:flex; gap:10px; flex-wrap:wrap}
+.row > *{flex:1; min-width:130px}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:11px 18px; font-size:14px; font-weight:600; border-radius:7px;
+  border:1px solid var(--border-strong); background:var(--surface); color:var(--text);
+  cursor:pointer;
+}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.btn.primary{background:var(--accent); color:var(--oncolor); border-color:var(--accent)}
+.btn.primary:hover{background:var(--accent-2); border-color:var(--accent-2)}
+.btn.danger{background:var(--bad); color:var(--oncolor); border-color:var(--bad)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.btn.sm{padding:7px 12px; font-size:12.5px}
+
+/* chip pickers — big touch targets for the shop floor */
+.chips{display:flex; flex-wrap:wrap; gap:7px}
+.chip{
+  padding:11px 14px; font-size:14.5px; font-weight:500; border-radius:8px;
+  border:1.5px solid var(--border-strong); background:var(--surface);
+  color:var(--text); cursor:pointer; min-width:52px; text-align:center;
+  flex:0 0 auto;
+}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{
+  background:var(--accent); border-color:var(--accent); color:var(--oncolor);
+}
+.chips.wide .chip{flex:1 1 44%}
+
+.msg{padding:11px 14px; border-radius:7px; font-size:13.5px; margin-bottom:14px;
+  border-inline-start:3px solid var(--muted); background:var(--surface);}
+.msg.ok{border-inline-start-color:var(--good); background:var(--good-soft); color:var(--good)}
+.msg.err{border-inline-start-color:var(--bad); background:var(--bad-soft); color:var(--bad)}
+.msg.warn{border-inline-start-color:var(--warn); background:var(--warn-soft); color:var(--warn)}
+.msg:empty{display:none}
+
+.empty{padding:26px 18px; text-align:center; color:var(--muted); font-size:13.5px}
+
+/* ---------------- funnel ---------------- */
+.funnel{display:flex; flex-direction:column; gap:5px}
+.fstage{display:grid; grid-template-columns:124px minmax(0,1fr) 150px;
+  gap:12px; align-items:center}
+.fstage .fn{font-size:12.5px; font-weight:500; text-align:end; color:var(--text)}
+.ftrack{background:var(--surface-2); border-radius:4px; overflow:hidden; height:34px}
+.fbar{height:100%; background:var(--accent); display:flex; align-items:center;
+  padding-inline:11px; color:var(--oncolor); font-family:"IBM Plex Mono",monospace;
+  font-size:12px; font-weight:500; min-width:fit-content; border-radius:4px;}
+.fmeta{font-size:11.5px; color:var(--muted); line-height:1.35}
+.fmeta b{color:var(--bad)}
+.fstage.leak .fn{color:var(--bad); font-weight:600}
+
+/* ---------------- misc ---------------- */
+.bar{height:7px; background:var(--surface-2); border-radius:4px; overflow:hidden}
+.bar > i{display:block; height:100%; background:var(--accent); border-radius:4px}
+.tabs{display:flex; gap:4px; flex-wrap:wrap; border-bottom:1px solid var(--border);
+  margin-bottom:18px; overflow-x:auto}
+.tabs button{background:none; border:none; border-bottom:2px solid transparent;
+  padding:10px 13px; font-size:13px; color:var(--muted); cursor:pointer; font-weight:500;
+  white-space:nowrap;}
+.tabs button.on{color:var(--accent); border-bottom-color:var(--accent); font-weight:600}
+.tabs button:hover{color:var(--text)}
+.hide{display:none !important}
+.sub{font-size:11.5px; color:var(--muted)}
+.right{text-align:end}
+.spread{display:flex; justify-content:space-between; align-items:center; gap:10px}
+
+@media (max-width:640px){
+  .page{padding:16px 13px 90px}
+  .fstage{grid-template-columns:96px minmax(0,1fr)}
+  .fstage .fmeta{grid-column:2}
+  .appbar{padding:9px 13px}
+}
+/* ---------------- RTL ---------------- */
+/* Arabic letters join. Letter-spacing pulls those joins apart and makes the
+   word unreadable, and there is no uppercase in Arabic — so both are removed
+   from every label style that used them for Latin small-caps texture. */
+[dir="rtl"] .eyebrow,
+[dir="rtl"] th,
+[dir="rtl"] .stat .k,
+[dir="rtl"] .stat .s,
+[dir="rtl"] label.f,
+[dir="rtl"] .pill,
+[dir="rtl"] .callout .k,
+[dir="rtl"] .appbar .brand span,
+[dir="rtl"] .controls .c label,
+[dir="rtl"] .mini .k,
+[dir="rtl"] .sub{letter-spacing:0; text-transform:none;}
+
+/* Most of the layout mirrors on its own because the rules above use logical
+   properties. These are the few places that still need a direction. */
+[dir="rtl"] .rank{text-align:start}
+[dir="rtl"] .drawer{justify-content:flex-start}
+[dir="rtl"] .drawer .panel{border-inline-start:none; border-inline-end:1px solid var(--border)}
+[dir="rtl"] details.exp > summary::before{content:"C2"}
+[dir="rtl"] details.exp[open] > summary::before{content:"BE"}
+/* Lead IDs, phone numbers and money are Latin-script runs inside Arabic text.
+   Without this they get reordered by the bidi algorithm and read wrongly. */
+[dir="rtl"] .mono,
+[dir="rtl"] td.n,
+[dir="rtl"] .num,
+[dir="rtl"] .stat .v,
+[dir="rtl"] .mini .v,
+/* The bar grows leftwards from the right edge, so its number belongs at that
+   right edge — the end of an ltr run inside an rtl row. */
+[dir="rtl"] .fbar{direction:ltr; justify-content:flex-end}
+[dir="rtl"] .stat .v.empty{direction:rtl; text-align:start}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}

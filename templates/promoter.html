@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B6B63">
+<title>{{ user.name }} — تفعيل أبواب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/app.css">
+<style>
+  .miniset{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px}
+  .mini{background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:11px 6px; text-align:center}
+  .mini .v{font-family:"IBM Plex Sans Arabic",sans-serif; font-weight:700; font-size:23px;
+    font-variant-numeric:tabular-nums; line-height:1.1}
+  .mini .k{font-size:9.5px; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--muted); font-weight:600; margin-top:3px}
+  .bigbtn{
+    width:100%; padding:22px; font-size:18px; font-weight:600; border-radius:10px;
+    border:1.5px solid var(--border-strong); background:var(--surface); color:var(--text);
+    cursor:pointer; margin-bottom:10px;
+  }
+  .bigbtn.primary{background:var(--accent); color:var(--oncolor); border-color:var(--accent);
+    font-size:20px; padding:26px}
+  .bigbtn:active{transform:scale(.99)}
+  .sheet{position:fixed; inset:0; background:var(--bg); z-index:60;
+    overflow-y:auto; padding:16px 14px 40px}
+  .sheet header{display:flex; align-items:center; gap:12px; margin-bottom:18px}
+  .sheet h2{font-size:19px; flex:1}
+  .step{margin-bottom:22px}
+  .step .q{font-size:16px; font-weight:600; margin-bottom:4px}
+  .script{font-size:13px; color:var(--muted); font-style:italic; margin-bottom:10px}
+  .gradegrid{display:grid; grid-template-columns:repeat(4,1fr); gap:7px}
+  .branchbar{display:flex; align-items:center; gap:9px; margin-bottom:14px;
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:9px 12px}
+  .branchbar select{flex:1; padding:7px 9px; font-size:13.5px}
+  .gradegrid .chip{min-width:0; padding:13px 4px; font-size:14px}
+  .fixedbar{position:fixed; left:0; right:0; bottom:0; padding:12px 14px;
+    background:var(--surface); border-top:1px solid var(--border); z-index:61}
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="brand">{{ user.name }}<span>{{ promoter_code }}</span></div>
+  <div class="spacer"></div>
+  <a href="/logout" class="btn sm">خروج</a>
+</div>
+
+<div class="page narrow">
+  <div id="msg" class="msg"></div>
+
+  <!-- بدون بوابة بدء: يفتح النظام ويشتغل فوراً -->
+  <!-- during the shift -->
+  <div id="onShift" class="hide">
+    <div class="branchbar">
+      <span class="sub">الفرع</span>
+      <select id="branchSel"></select>
+      <span class="sub" id="plannedNote"></span>
+    </div>
+
+    <div class="miniset">
+      <div class="mini"><div class="v" id="mConv">0</div><div class="k">محادثات</div></div>
+      <div class="mini"><div class="v" id="mQual">0</div><div class="k">مؤهّل</div></div>
+      <div class="mini"><div class="v" id="mCap">0</div><div class="k">مسجّل</div></div>
+    </div>
+
+    <button class="bigbtn primary" id="btnLead">＋ تسجيل ليد</button>
+    <button class="bigbtn" id="btnConvo">＋ محادثة بدون ليد</button>
+
+    <div class="spread" style="margin:20px 0 8px">
+      <div class="eyebrow">ليدات اليوم</div>
+      <span class="sub" id="shiftMeta"></span>
+    </div>
+    <div id="recent"><div class="empty">لا توجد ليدات بعد.</div></div>
+
+    <button class="btn block" id="btnClose" style="margin-top:18px">إنهاء الشفت</button>
+  </div>
+
+  <!-- after the shift -->
+  <div id="postShift" class="hide">
+    <div class="msg ok">تم إنهاء الشفت. أرقامك وصلت للمدير.</div>
+    <div class="miniset">
+      <div class="mini"><div class="v" id="pConv">0</div><div class="k">محادثات</div></div>
+      <div class="mini"><div class="v" id="pQual">0</div><div class="k">مؤهّل</div></div>
+      <div class="mini"><div class="v" id="pCap">0</div><div class="k">مسجّل</div></div>
+    </div>
+    <p class="sub" style="margin-bottom:14px">ارجع غداً وسجّل دخولك، وتقدر تبدأ مباشرة.</p>
+    <button class="btn block" id="btnReopen">أكمل التسجيل اليوم</button>
+  </div>
+</div>
+
+<!-- ---------------- lead capture ---------------- -->
+<div class="sheet hide" id="leadSheet">
+  <header>
+    <h2>ليد جديد</h2>
+    <button class="btn sm" id="leadCancel">إلغاء</button>
+  </header>
+  <div id="leadMsg" class="msg"></div>
+
+  <div class="step">
+    <div class="q">صف الطالب</div>
+    <div class="script">«عندك طالب بالمدرسة؟ بأي صف؟»</div>
+    <div class="gradegrid" id="gradeChips"></div>
+  </div>
+
+  <div class="step">
+    <div class="q">شنو يحتاج؟</div>
+    <div class="script">«مراجعة، امتحانات، مادة ضعيفة؟»</div>
+    <div class="chips wide" id="interestChips"></div>
+  </div>
+
+  <div class="step">
+    <div class="q">أتكلم مع</div>
+    <div class="chips wide" id="typeChips"></div>
+  </div>
+
+  <div class="step">
+    <div class="q">أعطاك بياناته؟</div>
+    <div class="script">«راح أسجّلك للهدية — بس الاسم والرقم.»</div>
+    <div class="chips wide" id="outcomeChips"></div>
+  </div>
+
+  <div id="captureFields">
+    <div class="field">
+      <label class="f" for="cName">الاسم</label>
+      <input id="cName" type="text" autocomplete="off" placeholder="الاسم الأول يكفي">
+    </div>
+    <div class="field">
+      <label class="f" for="cPhone">رقم الهاتف</label>
+      <input id="cPhone" type="tel" inputmode="numeric" autocomplete="off" placeholder="07XXXXXXXX">
+      <p class="sub" style="margin-top:6px">اقرأ الرقم للزبون قبل الحفظ.</p>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="f" for="lNote">ملاحظات (اختياري)</label>
+    <textarea id="lNote" rows="2" maxlength="300"
+      placeholder="مثال: يريد اتصال بعد 6 مساءً · الأم هي اللي تقرر · شاف السعر غالي"></textarea>
+    <p class="sub" style="margin-top:6px">
+      هذي الملاحظة تظهر لموظف المبيعات قبل ما يتصل. اكتب الشي اللي ما تحمله
+      الحقول أعلاه فقط.
+    </p>
+  </div>
+
+  <div style="height:74px"></div>
+  <div class="fixedbar">
+    <button class="btn primary block" id="leadSave">حفظ الليد</button>
+  </div>
+</div>
+
+<!-- ---------------- close shift ---------------- -->
+<div class="sheet hide" id="closeSheet">
+  <header>
+    <h2>إنهاء الشفت</h2>
+    <button class="btn sm" id="closeCancel">رجوع</button>
+  </header>
+  <div id="closeMsg" class="msg"></div>
+
+  <div class="field">
+    <label class="f" for="cConv">مجموع المحادثات اليوم</label>
+    <input id="cConv" type="number" inputmode="numeric" min="0">
+    <p class="sub" style="margin-top:6px">محسوبة تلقائياً. غيّرها فقط إذا تعرف أنك نسيت تحسب بعضها.</p>
+  </div>
+  <div class="field">
+    <label class="f" for="cGifts">الهدايا الموزّعة</label>
+    <input id="cGifts" type="number" inputmode="numeric" min="0" value="0">
+  </div>
+  <div class="field">
+    <label class="f" for="cNote">شيء غير اعتيادي اليوم؟ (اختياري)</label>
+    <textarea id="cNote" rows="2" placeholder="الممر مسكّر، ما في شبكة…"></textarea>
+  </div>
+
+  <div style="height:74px"></div>
+  <div class="fixedbar">
+    <button class="btn primary block" id="closeSave">إغلاق الشفت</button>
+  </div>
+</div>
+
+<script>window.CFG = {{ cfg | tojson }}; window.PROMOTER = {{ promoter_code | tojson }};</script>
+<script src="/static/promoter.js"></script>
+</body>
+</html>

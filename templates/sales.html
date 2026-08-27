@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>متابعة المبيعات — تفعيل أبواب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/app.css">
+<style>
+  .qrow{cursor:pointer}
+  .qrow td.rem{font-weight:600}
+  .qrow.breached td.rem{color:var(--bad)}
+  .qrow.urgent td.rem{color:var(--warn)}
+  .qrow.ok td.rem{color:var(--good)}
+  .drawer{position:fixed; inset:0; background:rgba(15,29,27,.45); z-index:70;
+    display:flex; justify-content:flex-end}
+  .drawer .panel{background:var(--bg); width:min(460px,100%); height:100%;
+    overflow-y:auto; padding:18px 18px 40px; border-inline-start:1px solid var(--border)}
+  .pnote{background:var(--warn-soft); border-inline-start:3px solid var(--warn);
+    border-radius:0 8px 8px 0; padding:12px 14px; margin-bottom:16px;
+    font-size:14px; color:var(--text); line-height:1.5}
+  .pnote .k{display:block; font-size:10px; letter-spacing:.06em; font-weight:600;
+    color:var(--warn); margin-bottom:4px}
+  td.notecell{max-width:220px; white-space:normal; color:var(--muted); font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="brand">{{ user.name }}<span>متابعة المبيعات</span></div>
+  <div class="spacer"></div>
+  {% if user.role == "manager" %}
+    <div style="min-width:190px">
+      <select id="agentSel" aria-label="التسجيل باسم"></select>
+    </div>
+    <nav><a href="/manager">لوحة المدير</a></nav>
+  {% else %}
+    <select id="agentSel" class="hide"></select>
+  {% endif %}
+  <a href="/logout" class="btn sm">خروج</a>
+</div>
+
+<div class="page">
+  <div id="msg" class="msg"></div>
+
+  <div class="grid g4" id="tiles"></div>
+
+  <div class="section">
+    <header>
+      <h2>قائمة الاتصال</h2>
+      <span class="hint">ليدات جاهزة ولم يُتصل بها، الأقل وقتاً أولاً. الصف الأحمر زبون تكلّم مع مروّج ولم يصله أي رد.</span>
+    </header>
+    <div class="tw" id="queue"></div>
+  </div>
+
+  <div class="section">
+    <header>
+      <h2>كل الليدات</h2>
+      <span class="hint">ابحث بالاسم أو الرقم أو رقم الليد أو المروّج أو الحالة.</span>
+      <div class="spacer" style="flex:1"></div>
+    </header>
+    <div class="row" style="margin-bottom:12px">
+      <input id="search" type="search" placeholder="بحث…" style="flex:2">
+      <select id="statusFilter" style="flex:1"></select>
+    </div>
+    <div class="tw" id="leads"></div>
+  </div>
+</div>
+
+<!-- follow-up drawer -->
+<div class="drawer hide" id="drawer">
+  <div class="panel">
+    <div class="spread" style="margin-bottom:14px">
+      <h2 style="font-size:18px">تسجيل متابعة</h2>
+      <button class="btn sm" id="drawerClose">إغلاق</button>
+    </div>
+    <div id="drawerMsg" class="msg"></div>
+
+    <div class="card pad" style="margin-bottom:16px">
+      <div class="mono" id="dLeadId" style="font-size:12px; color:var(--muted)"></div>
+      <div id="dName" style="font-weight:600; font-size:16px; margin-top:3px"></div>
+      <div class="sub" id="dMeta"></div>
+      <div class="sub" id="dSource" style="margin-top:6px"></div>
+    </div>
+
+    <div id="dPromoterNote" class="pnote hide"></div>
+
+    <div class="field">
+      <label class="f">نتيجة هذا الاتصال</label>
+      <div class="chips wide" id="statusChips"></div>
+    </div>
+
+    <div class="field">
+      <label class="f" for="dAttempts">عدد المحاولات حتى الآن</label>
+      <input id="dAttempts" type="number" min="1" value="1">
+    </div>
+
+    <div id="saleFields" class="hide">
+      <div class="field">
+        <label class="f" for="dRevenue">المبلغ المدفوع (<span class="cur"></span>)</label>
+        <input id="dRevenue" type="number" min="0" step="0.01">
+      </div>
+      <div class="field">
+        <label class="f" for="dProduct">الباقة المشتراة</label>
+        <select id="dProduct"></select>
+      </div>
+      <div class="field">
+        <label class="f" for="dPurchaseDate">تاريخ الشراء</label>
+        <input id="dPurchaseDate" type="date">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="f" for="dNotes">ملاحظات (اختياري)</label>
+      <textarea id="dNotes" rows="2" placeholder="اعتراض، موعد اتصال…"></textarea>
+    </div>
+
+    <details style="margin-bottom:16px">
+      <summary class="sub" style="cursor:pointer">هذا الاتصال صار سابقاً</summary>
+      <div class="field" style="margin-top:10px">
+        <label class="f" for="dContactTs">وقت الاتصال الفعلي</label>
+        <input id="dContactTs" type="datetime-local">
+        <p class="sub" style="margin-top:6px">الإدخال بأثر رجعي يُسجّل كذلك ويظهر عند المدير في جودة البيانات. اتركه فارغاً ليُسجّل الوقت الآن.</p>
+      </div>
+    </details>
+
+    <button class="btn primary block" id="dSave">حفظ المتابعة</button>
+  </div>
+</div>
+
+<script>window.CFG = {{ cfg | tojson }}; window.AGENT = {{ agent | tojson }};</script>
+<script src="/static/sales.js"></script>
+</body>
+</html>

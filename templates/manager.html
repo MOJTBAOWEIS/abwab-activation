@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة المدير — تفعيل أبواب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/app.css">
+<style>
+  .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:12px 14px; box-shadow:var(--shadow); margin-bottom:16px}
+  .controls .c label{display:block; font-size:10px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:5px}
+  .controls input,.controls select{padding:8px 10px; font-size:13px; min-width:130px}
+  .presets{display:flex; gap:5px; flex-wrap:wrap}
+  .presets button{padding:8px 12px; font-size:12px; border-radius:6px;
+    border:1px solid var(--border-strong); background:var(--surface);
+    color:var(--text-2); cursor:pointer}
+  .presets button:hover{border-color:var(--accent); color:var(--accent)}
+  .presets button.on{background:var(--accent-soft); color:var(--accent);
+    border-color:var(--accent); font-weight:600}
+  .scorecell{display:flex; align-items:center; gap:8px}
+  .scorecell .n{font-family:"IBM Plex Sans Arabic",sans-serif; font-weight:700; font-size:15px;
+    min-width:40px; text-align:end}
+  .callout{background:var(--surface); border:1px solid var(--border);
+    border-inline-start:3px solid var(--accent); border-radius:8px;
+    padding:13px 15px; box-shadow:var(--shadow)}
+  .callout.good{border-inline-start-color:var(--good)}
+  .callout.bad{border-inline-start-color:var(--bad)}
+  .callout .k{font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--muted); font-weight:600}
+  .callout .v{font-family:"IBM Plex Sans Arabic",sans-serif; font-weight:700; font-size:18px;
+    margin:3px 0 2px}
+  .minibar{display:grid; grid-template-columns:104px 1fr 44px 52px; gap:9px;
+    align-items:center; font-size:12.5px; padding:3px 0}
+  .minibar .lb{color:var(--text-2); overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap}
+  .minibar .n{font-family:"IBM Plex Mono",monospace; text-align:end;
+    font-variant-numeric:tabular-nums; font-size:11.5px}
+  .minibar .pr{color:var(--good); font-weight:600}
+  details.exp{border:1px solid var(--border); border-radius:8px; background:var(--surface);
+    margin-bottom:10px; box-shadow:var(--shadow)}
+  details.exp > summary{padding:12px 15px; cursor:pointer; font-size:13.5px;
+    font-weight:600; display:flex; align-items:center; gap:10px}
+  details.exp > summary::-webkit-details-marker{display:none}
+  details.exp > summary::before{content:"▸"; color:var(--muted); font-size:11px}
+  details.exp[open] > summary::before{content:"▾"}
+  .flagchip{font-family:"IBM Plex Mono",monospace; font-size:9.5px; padding:2px 5px;
+    border-radius:3px; background:var(--bad-soft); color:var(--bad); margin-inline-end:3px;
+    display:inline-block}
+  .flagchip.high{background:var(--warn-soft); color:var(--warn)}
+  .flagchip.medium{background:var(--surface-2); color:var(--muted)}
+  #tab-setup td{padding:7px 10px}
+  #tab-setup input[type="text"],#tab-setup input[type="number"],
+  #tab-setup input[type="time"],#tab-setup select{padding:7px 9px; font-size:13px}
+  #tab-setup td.acts{white-space:nowrap; display:flex; gap:6px}
+  #tab-setup .chk{width:17px; height:17px; accent-color:var(--accent)}
+  #tab-setup tr.newrow td{background:var(--surface-2)}
+  #tab-setup .btn.del:hover{border-color:var(--bad); color:var(--bad)}
+  td.notecell{max-width:230px; white-space:normal; color:var(--muted); font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="brand">تفعيل أبواب<span>لوحة المدير</span></div>
+  <div class="spacer"></div>
+  <nav><a href="/sales">المبيعات</a></nav>
+  <a href="/logout" class="btn sm">خروج</a>
+</div>
+
+<div class="page">
+  <div id="msg" class="msg"></div>
+
+  <div class="controls">
+    <div class="c">
+      <label>الفترة</label>
+      <div class="presets" id="presets">
+        <button data-days="0">اليوم</button>
+        <button data-days="7">7 أيام</button>
+        <button data-days="30">30 يوم</button>
+        <button data-days="-1" class="on">الكل</button>
+      </div>
+    </div>
+    <div class="c"><label for="fFrom">من</label><input id="fFrom" type="date"></div>
+    <div class="c"><label for="fTo">إلى</label><input id="fTo" type="date"></div>
+    <div class="c"><label for="fBranch">الفرع</label><select id="fBranch"></select></div>
+    <div class="c" style="min-width:auto">
+      <label>&nbsp;</label>
+      <a class="btn sm" id="exportLeads" href="/api/export/leads.csv">تصدير CSV</a>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-tab="overview" class="on">نظرة عامة</button>
+    <button data-tab="team">المروّجون والفروع</button>
+    <button data-tab="leads">الليدات</button>
+    <button data-tab="data">البيانات والتكاليف</button>
+    <button data-tab="setup">الإعدادات</button>
+  </div>
+
+  <div id="tab-overview" class="tabpane"></div>
+  <div id="tab-team" class="tabpane hide"></div>
+  <div id="tab-leads" class="tabpane hide"></div>
+  <div id="tab-data" class="tabpane hide"></div>
+  <div id="tab-setup" class="tabpane hide"></div>
+</div>
+
+<script>window.CFG = {{ cfg | tojson }};</script>
+<script src="/static/manager.js"></script>
+<script src="/static/setup.js"></script>
+</body>
+</html>

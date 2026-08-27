@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0B6B63">
+<title>تسجيل الدخول — تفعيل أبواب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/app.css">
+<style>
+  body{display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px}
+  .box{width:100%; max-width:370px}
+  .logo{font-family:"IBM Plex Sans Arabic",sans-serif; font-weight:700; font-size:22px; letter-spacing:-.02em}
+  .logo span{display:block; font-family:"IBM Plex Sans",sans-serif; font-size:10.5px;
+    letter-spacing:.11em; text-transform:uppercase; color:var(--muted);
+    font-weight:600; margin-top:3px}
+  input[type="password"]{font-size:18px; letter-spacing:.2em; text-align:center;
+    font-family:"IBM Plex Mono",monospace; padding:14px; direction:ltr}
+</style>
+</head>
+<body>
+<div class="box">
+  <div style="margin-bottom:22px" class="logo">تفعيل أبواب<span>نظام متابعة الليدات</span></div>
+
+  <form method="post" class="card pad">
+    {% if error %}<div class="msg err">{{ error }}</div>{% endif %}
+
+    <div class="field">
+      <label class="f" for="who">من أنت؟</label>
+      <select id="who" name="who" required autofocus>
+        <option value="" disabled selected>اختر اسمك</option>
+        {% for group, group_ar in [("Promoter", "المروّجون"), ("Sales", "المبيعات"), ("Manager", "الإدارة")] %}
+          <optgroup label="{{ group_ar }}">
+          {% for code, name, role in people %}{% if role == group %}
+            <option value="{{ code }}">{{ name }}</option>
+          {% endif %}{% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="f" for="pin">كلمة السر</label>
+      <input id="pin" name="pin" type="password"
+             maxlength="32" autocomplete="current-password" required
+             placeholder="••••••••">
+    </div>
+
+    <button class="btn primary block" type="submit">دخول</button>
+  </form>
+
+  <p class="sub" style="margin-top:14px; text-align:center">
+    كل شخص يرى شاشته فقط. اطلب كلمة سرك من المشرف.
+  </p>
+</div>
+</body>
+</html>

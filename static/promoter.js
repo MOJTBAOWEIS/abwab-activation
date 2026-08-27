@@ -1,0 +1,286 @@
+/* Promoter surface — optimised for one thing: capturing a qualified lead in
+   under 25 seconds while the customer is still standing there. */
+
+(function () {
+  "use strict";
+
+  var CFG = window.CFG;
+  var code = window.PROMOTER || "";
+  var state = { shift: null, today: "", qualified: 0, captured: 0, lead: {} };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* Stored values stay English; only the display is Arabic. */
+  function L(kind, value) {
+    var m = (CFG.labels || {})[kind] || {};
+    return m[value] || value;
+  }
+
+  function show(el, on) { el.classList.toggle("hide", !on); }
+
+  function msg(el, text, kind) {
+    el.className = "msg" + (kind ? " " + kind : "");
+    el.textContent = text || "";
+  }
+
+  function api(path, body) {
+    var opts = { headers: { "Content-Type": "application/json" } };
+    if (body) { opts.method = "POST"; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) { throw new Error(j.error || "صار خطأ، حاول مرة ثانية"); }
+        return j;
+      });
+    });
+  }
+
+  /* ---- local conversation tally -------------------------------------
+     Kept in localStorage so a dropped connection never loses the count.
+     Only counts conversations that did NOT produce a lead; lead-producing
+     conversations are added back at close time. This makes it impossible
+     to log more leads than conversations. */
+  function tallyKey() { return "abwab_convo_" + code + "_" + state.today; }
+  function getTaps() { return parseInt(localStorage.getItem(tallyKey()) || "0", 10); }
+  function setTaps(n) { localStorage.setItem(tallyKey(), String(Math.max(0, n))); }
+  function totalConversations() { return getTaps() + state.qualified; }
+
+  /* ---- chip pickers --------------------------------------------------- */
+  function buildChips(host, values, field, onPick, label) {
+    host.innerHTML = "";
+    values.forEach(function (v) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = label ? label(v) : v;
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(host.children, function (c) {
+          c.setAttribute("aria-pressed", "false");
+        });
+        b.setAttribute("aria-pressed", "true");
+        state.lead[field] = v;
+        if (onPick) { onPick(v); }
+      });
+      host.appendChild(b);
+    });
+  }
+
+  function shortGrade(g) {
+    return (CFG.labels.grade_short[g] || g);
+  }
+
+  /* ---- render --------------------------------------------------------- */
+  function paint() {
+    $("mConv").textContent = totalConversations();
+    $("mQual").textContent = state.qualified;
+    $("mCap").textContent = state.captured;
+    $("pConv").textContent = state.shift && state.shift.conversations != null
+      ? state.shift.conversations : totalConversations();
+    $("pQual").textContent = state.qualified;
+    $("pCap").textContent = state.captured;
+
+    // لا توجد شاشة "ابدأ الشفت" — الشفت يُفتح تلقائياً عند الدخول
+    var closed = state.shift && state.shift.end_ts;
+    show($("onShift"), !closed);
+    show($("postShift"), !!closed);
+
+    if (state.shift) {
+      $("shiftMeta").textContent = L("shift", state.shift.shift) + " · من "
+        + state.shift.start_ts.slice(11, 16);
+      var sel = $("branchSel");
+      if (sel && sel.value !== state.shift.branch) { sel.value = state.shift.branch; }
+    }
+    var note = $("plannedNote");
+    if (note) {
+      note.textContent = state.planned
+        ? "مجدول: " + L("shift", state.planned.shift_type)
+        : "";
+    }
+  }
+
+  function renderRecent(list) {
+    var host = $("recent");
+    if (!list.length) { host.innerHTML = '<div class="empty">لا توجد ليدات بعد.</div>'; return; }
+    var html = '<div class="tw"><table><tbody>';
+    list.slice(0, 8).forEach(function (l) {
+      html += "<tr><td>" + l.time + "</td>"
+        + "<td><strong>" + (l.customer_name || "—") + "</strong><div class='sub'>"
+        + shortGrade(l.grade) + " · " + L("interest", l.interest) + "</div></td>"
+        + "<td class='right'><span class='pill "
+        + (l.outcome === "Captured" ? "good" : "mute") + "'>" + L("outcome", l.outcome)
+        + "</span></td></tr>";
+    });
+    html += "</tbody></table></div>";
+    host.innerHTML = html;
+  }
+
+  function refreshRecent() {
+    fetch("/api/leads?from=" + state.today + "&to=" + state.today)
+      .then(function (r) { return r.json(); })
+      .then(renderRecent)
+      .catch(function () { /* the list is a convenience, never block on it */ });
+  }
+
+  function refresh() {
+    return api("/api/shift/current")
+      .then(function (j) {
+        state.shift = j.shift;
+        state.today = j.today;
+        state.qualified = j.qualified;
+        state.captured = j.captured;
+        state.planned = j.planned;
+        if (j.branches) { fillBranches(j.branches, j.shift.branch); }
+        paint();
+        if (state.shift && !state.shift.end_ts) { refreshRecent(); }
+      });
+  }
+
+  /* ---- lead sheet ----------------------------------------------------- */
+  function openLeadSheet() {
+    state.lead = { outcome: "Captured", customer_type: "Parent" };
+    msg($("leadMsg"), "");
+    $("cName").value = "";
+    $("cPhone").value = "";
+    $("lNote").value = "";
+    buildChips($("gradeChips"), CFG.grades, "grade", null, shortGrade);
+    buildChips($("interestChips"), CFG.interests, "interest", null,
+      function (v) { return L("interest", v); });
+    buildChips($("typeChips"), CFG.customer_types, "customer_type", null,
+      function (v) { return L("customer_type", v); });
+    buildChips($("outcomeChips"), CFG.outcomes, "outcome", function (v) {
+      show($("captureFields"), v === "Captured");
+      $("leadSave").textContent = v === "Captured" ? "حفظ الليد" : "حفظ — رفض";
+    }, function (v) { return L("outcome", v); });
+    preselect($("typeChips"), L("customer_type", "Parent"));
+    preselect($("outcomeChips"), L("outcome", "Captured"));
+    show($("captureFields"), true);
+    $("leadSave").textContent = "حفظ الليد";
+    show($("leadSheet"), true);
+    window.scrollTo(0, 0);
+  }
+
+  function preselect(host, value) {
+    Array.prototype.forEach.call(host.children, function (c) {
+      if (c.textContent === value) { c.setAttribute("aria-pressed", "true"); }
+    });
+  }
+
+  function saveLead() {
+    var l = state.lead;
+    if (!l.grade) { return msg($("leadMsg"), "اختر صف الطالب.", "err"); }
+    if (!l.interest) { return msg($("leadMsg"), "اختر شنو يحتاج.", "err"); }
+
+    var payload = {
+      branch: state.shift ? state.shift.branch : null,
+      grade: l.grade, interest: l.interest,
+      customer_type: l.customer_type, outcome: l.outcome,
+      customer_name: $("cName").value, phone: $("cPhone").value,
+      note: $("lNote").value
+    };
+
+    var btn = $("leadSave");
+    btn.disabled = true;
+    api("/api/leads", payload).then(function (j) {
+      state.qualified = j.qualified_today;
+      state.captured = j.captured_today;
+      show($("leadSheet"), false);
+      paint();
+      refreshRecent();
+      if (j.duplicate_of) {
+        msg($("msg"), "تم الحفظ — لكن هذا الرقم مسجّل سابقاً على "
+          + j.duplicate_of + ". المدير راح يراجعه.", "warn");
+      } else {
+        msg($("msg"), "تم حفظ الليد. " + j.lead_id, "ok");
+        setTimeout(function () { msg($("msg"), ""); }, 3500);
+      }
+    }).catch(function (e) {
+      msg($("leadMsg"), e.message, "err");
+    }).then(function () { btn.disabled = false; });
+  }
+
+  /* ---- close sheet ---------------------------------------------------- */
+  function openCloseSheet() {
+    msg($("closeMsg"), "");
+    $("cConv").value = totalConversations();
+    show($("closeSheet"), true);
+    window.scrollTo(0, 0);
+  }
+
+  function saveClose() {
+    var n = parseInt($("cConv").value, 10);
+    if (isNaN(n)) { return msg($("closeMsg"), "اكتب عدد المحادثات.", "err"); }
+    if (n < state.qualified) {
+      return msg($("closeMsg"), "سجّلت " + state.qualified + " ليد، يعني عندك "
+        + state.qualified + " محادثة على الأقل. ارفع الرقم.", "err");
+    }
+    var btn = $("closeSave");
+    btn.disabled = true;
+    api("/api/shift/close", {
+      conversations: n,
+      gifts_issued: $("cGifts").value, note: $("cNote").value
+    }).then(function (j) {
+      localStorage.removeItem(tallyKey());
+      show($("closeSheet"), false);
+      return refresh();
+    }).catch(function (e) {
+      msg($("closeMsg"), e.message, "err");
+    }).then(function () { btn.disabled = false; });
+  }
+
+  /* ---- boot ----------------------------------------------------------- */
+  function fillBranches(branches, selected) {
+    var sel = $("branchSel");
+    if (!sel || sel.dataset.filled === "1") {
+      if (sel && selected) { sel.value = selected; }
+      return;
+    }
+    sel.innerHTML = "";
+    Object.keys(branches).forEach(function (b) {
+      var o = document.createElement("option");
+      o.value = b;
+      o.textContent = branches[b];
+      sel.appendChild(o);
+    });
+    sel.dataset.filled = "1";
+    if (selected) { sel.value = selected; }
+  }
+
+  function boot() {
+    $("branchSel").addEventListener("change", function () {
+      api("/api/shift/branch", { branch: $("branchSel").value })
+        .then(function () {
+          msg($("msg"), "تم تغيير الفرع.", "ok");
+          setTimeout(function () { msg($("msg"), ""); }, 2500);
+          return refresh();
+        })
+        .catch(function (e) { msg($("msg"), e.message, "err"); });
+    });
+
+    $("btnReopen").addEventListener("click", function () {
+      api("/api/shift/reopen", {})
+        .then(refresh)
+        .catch(function (e) { msg($("msg"), e.message, "err"); });
+    });
+
+    $("btnConvo").addEventListener("click", function () {
+      setTaps(getTaps() + 1);
+      paint();
+      $("btnConvo").textContent = "＋ محادثة بدون ليد   ✓";
+      setTimeout(function () {
+        $("btnConvo").textContent = "＋ محادثة بدون ليد";
+      }, 500);
+    });
+
+    $("btnLead").addEventListener("click", openLeadSheet);
+    $("leadCancel").addEventListener("click", function () { show($("leadSheet"), false); });
+    $("leadSave").addEventListener("click", saveLead);
+
+    $("btnClose").addEventListener("click", openCloseSheet);
+    $("closeCancel").addEventListener("click", function () { show($("closeSheet"), false); });
+    $("closeSave").addEventListener("click", saveClose);
+
+    refresh().catch(function (e) { msg($("msg"), e.message, "err"); });
+  }
+
+  boot();
+})();
