@@ -1,0 +1,6 @@
+# Railway runs Linux. A Procfile or shell-executed file with CRLF endings
+# fails there with a confusing "command not found".
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
