@@ -3,8 +3,8 @@
   "build": { "builder": "NIXPACKS" },
   "deploy": {
     "startCommand": "sh -c 'gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 60'",
-    "healthcheckPath": "/",
-    "healthcheckTimeout": 30,
+    "healthcheckPath": "/healthz",
+    "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5
   }
