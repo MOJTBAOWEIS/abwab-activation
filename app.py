@@ -615,6 +615,45 @@ def create_followup():
     return jsonify({"ok": True, "lead_id": lead_id, "status": status})
 
 
+@app.route("/api/lead/phone", methods=["POST"])
+@require("sales", "manager")
+def fix_lead_phone():
+    """Correct a phone number the promoter typed wrong.
+
+    A lead whose number is short is not automatically lost — the agent may
+    have the right one from a callback, the note, or a second attempt. Without
+    this the only options were to leave it uncallable or delete it.
+    """
+    d = request.get_json(force=True)
+    lead_id = (d.get("lead_id") or "").strip()
+    raw = (d.get("phone") or "").strip()
+
+    norm = settings.normalise_phone(raw)
+    if not settings.phone_is_valid(norm):
+        return jsonify({"error": settings.phone_error()}), 400
+
+    conn = db.connect()
+    lead = conn.execute("SELECT outcome FROM leads WHERE lead_id=?",
+                        (lead_id,)).fetchone()
+    if not lead:
+        conn.close()
+        return jsonify({"error": "رقم الليد غير موجود"}), 400
+    if lead["outcome"] != "Captured":
+        conn.close()
+        return jsonify({"error": "هذا الزبون رفض إعطاء رقمه"}), 400
+
+    dup = conn.execute(
+        "SELECT lead_id FROM leads WHERE phone_norm=? AND lead_id<>? ORDER BY ts LIMIT 1",
+        (norm, lead_id)).fetchone()
+
+    conn.execute("UPDATE leads SET phone_raw=?, phone_norm=? WHERE lead_id=?",
+                 (raw, norm, lead_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "phone": norm,
+                    "duplicate_of": dup["lead_id"] if dup else None})
+
+
 @app.route("/api/sales/queue")
 @require("sales", "manager")
 def sales_queue():

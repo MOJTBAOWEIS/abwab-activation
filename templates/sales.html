@@ -14,6 +14,8 @@
   .qrow.breached td.rem{color:var(--bad)}
   .qrow.urgent td.rem{color:var(--warn)}
   .qrow.ok td.rem{color:var(--good)}
+  .qrow.broken{opacity:.75}
+  .qrow.broken td{background:var(--bad-soft)}
   .drawer{position:fixed; inset:0; background:rgba(15,29,27,.45); z-index:70;
     display:flex; justify-content:flex-end}
   .drawer .panel{background:var(--bg); width:min(460px,100%); height:100%;
@@ -83,6 +85,19 @@
       <div id="dName" style="font-weight:600; font-size:16px; margin-top:3px"></div>
       <div class="sub" id="dMeta"></div>
       <div class="sub" id="dSource" style="margin-top:6px"></div>
+    </div>
+
+    <div id="fixPhoneBox" class="pnote hide" style="background:var(--bad-soft);
+         border-inline-start-color:var(--bad)">
+      <span class="k" style="color:var(--bad)">الرقم غير صالح للاتصال</span>
+      المسجّل: <b id="fixPhoneNow" class="mono"></b>
+      <div class="row" style="margin-top:10px">
+        <input id="dFixPhone" type="tel" inputmode="numeric" maxlength="11"
+               placeholder="07XXXXXXXXX" style="flex:2">
+        <button class="btn primary" id="dFixSave" style="flex:0 0 auto">تصحيح</button>
+      </div>
+      <div class="sub" style="margin-top:6px">إذا حصلت الرقم الصحيح من الزبون
+        أو من ملاحظة المروّج، صحّحه هنا ويرجع للقائمة.</div>
     </div>
 
     <div id="dPromoterNote" class="pnote hide"></div>

@@ -722,12 +722,30 @@ def data_quality(data):
 # -------------------------------------------------------------- SLA queue
 
 def sla_queue(data):
+    """Every captured lead nobody has called yet.
+
+    Leads with a broken phone number stay in this list, flagged. Hiding them
+    made a lead the business paid for disappear with no trace — the agent
+    could not see it, fix the number, or even know it existed. The SLA *metric*
+    still counts only CRM-ready leads, so sales is not scored on a number a
+    promoter typed wrong; this list is the work, that is the measurement.
+    """
     now = data["now"]
     rows = []
     for l in data["leads"]:
-        if not l["is_crm_ready"] or l["contacted"]:
+        if not l["is_captured"] or l["contacted"]:
             continue
         remaining = settings.sla_hours() - (now - l["ts"]).total_seconds() / 3600.0
+
+        if not l["phone_norm"]:
+            issue = "بدون رقم"
+        elif not db.phone_is_valid(l["phone_norm"]):
+            issue = "رقم غير مكتمل"
+        elif l["dup_phone"]:
+            issue = "رقم مكرر"
+        else:
+            issue = ""
+
         rows.append({
             "lead_id": l["lead_id"], "ts": l["ts"].strftime("%Y-%m-%d %H:%M"),
             "customer_name": l["customer_name"], "phone": l["phone_norm"],
@@ -735,9 +753,13 @@ def sla_queue(data):
             "grade": l["grade"], "interest": l["interest"],
             "promoter_note": l["promoter_note"],
             "hours_remaining": round(remaining, 1),
+            "callable": not issue,
+            "issue": issue,
             "state": "breached" if remaining < 0 else ("urgent" if remaining < 6 else "ok"),
         })
-    rows.sort(key=lambda r: r["hours_remaining"])
+    # Callable leads first — a broken number should not push a live one down
+    # the page — then by how little time is left.
+    rows.sort(key=lambda r: (not r["callable"], r["hours_remaining"]))
     return rows
 
 

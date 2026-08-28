@@ -63,10 +63,15 @@
       var left = r.hours_remaining < 0
         ? "متأخر " + Math.abs(r.hours_remaining).toFixed(1) + " س"
         : "باقي " + r.hours_remaining.toFixed(1) + " س";
-      h += "<tr class='qrow " + r.state + "' data-id='" + esc(r.lead_id) + "'>"
+      var phoneCell = r.callable
+        ? esc(r.phone)
+        : "<span class='pill bad'>" + esc(r.issue) + "</span>"
+          + (r.phone ? "<div class='sub'>" + esc(r.phone) + "</div>" : "");
+      h += "<tr class='qrow " + r.state + (r.callable ? "" : " broken")
+        + "' data-id='" + esc(r.lead_id) + "'>"
         + "<td class='n rem'>" + left + "</td>"
         + "<td><strong>" + esc(r.customer_name) + "</strong></td>"
-        + "<td class='n'>" + esc(r.phone) + "</td>"
+        + "<td class='n'>" + phoneCell + "</td>"
         + "<td>" + esc(L("grade", r.grade)) + "</td>"
         + "<td>" + esc(L("interest", r.interest)) + "</td>"
         + "<td class='notecell'>" + esc(r.promoter_note || "") + "</td>"
@@ -86,8 +91,11 @@
     var converted = leads.filter(function (l) { return l.purchase; }).length;
     var revenue = leads.reduce(function (a, l) { return a + (l.revenue || 0); }, 0);
 
+    var callable = queue.filter(function (r) { return r.callable; }).length;
+    var broken = queue.length - callable;
     var tiles = [
-      ["بانتظار أول اتصال", queue.length, "", queue.length ? "warn" : "good"],
+      ["بانتظار أول اتصال", callable, "", callable ? "warn" : "good"],
+      ["أرقام تحتاج تصحيح", broken, broken ? "صحّحها من القائمة" : "", broken ? "bad" : "good"],
       ["تجاوز المهلة", breached, "أكثر من " + CFG.sla_hours + " ساعة", breached ? "bad" : "good"],
       ["أقل من 6 ساعات", urgent, "اتصل بهم الآن", urgent ? "warn" : ""],
       ["تم الاتصال", contacted, "", ""],
@@ -156,6 +164,13 @@
       + " بتاريخ " + current.date + " " + current.time
       + " · الحالة الآن: " + L("status", current.status);
     // ملاحظة المروّج هي أهم شي يقرأه الموظف قبل ما يضغط الاتصال
+    // A number that cannot be dialled is the first thing to deal with.
+    var badPhone = !current.phone || current.phone.length !== CFG.phone_digits
+      || current.phone.indexOf(CFG.phone_prefix) !== 0;
+    $("fixPhoneBox").classList.toggle("hide", !badPhone);
+    $("dFixPhone").value = "";
+    $("fixPhoneNow").textContent = current.phone || "(بدون رقم)";
+
     var pn = $("dPromoterNote");
     pn.innerHTML = current.promoter_note
       ? "<span class='k'>ملاحظة المروّج</span>" + esc(current.promoter_note)
@@ -255,6 +270,19 @@
       if (e.target === $("drawer")) { $("drawer").classList.add("hide"); }
     });
     $("dSave").addEventListener("click", save);
+
+    $("dFixSave").addEventListener("click", function () {
+      api("/api/lead/phone", { lead_id: current.lead_id,
+                               phone: $("dFixPhone").value })
+        .then(function (j) {
+          msg($("drawerMsg"), j.duplicate_of
+            ? "تم التصحيح — لكن الرقم مسجّل على " + j.duplicate_of
+            : "تم تصحيح الرقم إلى " + j.phone, j.duplicate_of ? "warn" : "ok");
+          $("fixPhoneBox").classList.add("hide");
+          load();
+        })
+        .catch(function (e) { msg($("drawerMsg"), e.message, "err"); });
+    });
 
     load().catch(function (e) { msg($("msg"), e.message, "err"); });
     setInterval(load, 60000);   // القائمة حسّاسة للوقت
