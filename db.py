@@ -150,6 +150,10 @@ def connect():
 # EXISTS", so each one is checked against the live table before being added.
 MIGRATIONS = [
     ("leads", "note", "TEXT"),
+    # Conversations that produced no lead, counted live. Before this they
+    # lived only in the promoter's browser until the shift was closed, so the
+    # manager saw nothing all day and an unclosed shift lost them entirely.
+    ("shifts", "tap_conversations", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

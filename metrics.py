@@ -83,7 +83,12 @@ def load(conn, date_from=None, date_to=None, branch=None, promoter=None, now=Non
             "branch_name": settings.branches().get(r["branch"], r["branch"]),
             "shift": r["shift"], "start_ts": r["start_ts"], "end_ts": r["end_ts"],
             "hours": hours, "closed": bool(r["end_ts"]),
+            # Live figure while the shift runs; the promoter's confirmed total
+            # at close wins once it exists.
+            "tap_conversations": (r["tap_conversations"]
+                                  if "tap_conversations" in r.keys() else 0) or 0,
             "conversations": r["conversations"] if r["conversations"] is not None else None,
+            "conversations_confirmed": r["conversations"] is not None,
             "gifts_issued": r["gifts_issued"],
             "note": r["note"], "flags": [],
         }
@@ -184,6 +189,10 @@ def load(conn, date_from=None, date_to=None, branch=None, promoter=None, now=Non
         ls = by_shift.get(s["shift_key"], [])
         s["qualified"] = len(ls)
         s["captured"] = sum(l["is_captured"] for l in ls)
+        if s["conversations"] is None:
+            # Every lead came from a conversation, so the live total is the
+            # no-lead taps plus the leads themselves.
+            s["conversations"] = s["tap_conversations"] + s["qualified"]
         if not s["closed"]:
             s["flags"].append("NO_CLOSE")
         if s["conversations"] is not None and s["qualified"] > s["conversations"]:

@@ -6,7 +6,8 @@
 
   var CFG = window.CFG;
   var code = window.PROMOTER || "";
-  var state = { shift: null, today: "", qualified: 0, captured: 0, lead: {} };
+  var state = { shift: null, today: "", qualified: 0, captured: 0,
+               taps: 0, lead: {} };
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -34,15 +35,41 @@
     });
   }
 
-  /* ---- local conversation tally -------------------------------------
-     Kept in localStorage so a dropped connection never loses the count.
-     Only counts conversations that did NOT produce a lead; lead-producing
-     conversations are added back at close time. This makes it impossible
-     to log more leads than conversations. */
-  function tallyKey() { return "abwab_convo_" + code + "_" + state.today; }
-  function getTaps() { return parseInt(localStorage.getItem(tallyKey()) || "0", 10); }
-  function setTaps(n) { localStorage.setItem(tallyKey(), String(Math.max(0, n))); }
-  function totalConversations() { return getTaps() + state.qualified; }
+  /* ---- conversations with no lead ------------------------------------
+     Each tap goes to the server immediately, so the manager sees the top of
+     the funnel live and an unclosed shift never loses the count.
+
+     localStorage is now only a failure buffer: if a tap cannot be sent — dead
+     signal inside the store — it waits there and is flushed with the next
+     successful call. It is no longer the source of truth. */
+  function pendingKey() { return "abwab_pending_" + code + "_" + state.today; }
+  function getPending() { return parseInt(localStorage.getItem(pendingKey()) || "0", 10); }
+  function setPending(n) {
+    localStorage.setItem(pendingKey(), String(Math.max(0, n)));
+    var el = $("pendingNote");
+    if (el) {
+      el.textContent = n > 0 ? "‏" + n + " محادثة لم تُرسل بعد — راح تُرسل تلقائياً" : "";
+      el.classList.toggle("hide", n <= 0);
+    }
+  }
+
+  // Server-side taps + today's leads. Every lead came from a conversation.
+  function totalConversations() {
+    return state.taps + getPending() + state.qualified;
+  }
+
+  function sendTaps(n) {
+    return api("/api/shift/conversation", { n: n }).then(function (j) {
+      state.taps = j.tap_conversations;
+      setPending(0);
+      paint();
+    });
+  }
+
+  function flushPending() {
+    var p = getPending();
+    if (p > 0) { sendTaps(p).catch(function () { /* still offline */ }); }
+  }
 
   /* ---- chip pickers --------------------------------------------------- */
   function buildChips(host, values, field, onPick, label) {
@@ -129,8 +156,11 @@
         state.qualified = j.qualified;
         state.captured = j.captured;
         state.planned = j.planned;
+        state.taps = j.taps || 0;
         if (j.branches) { fillBranches(j.branches, j.shift.branch); }
+        setPending(getPending());
         paint();
+        flushPending();
         if (state.shift && !state.shift.end_ts) { refreshRecent(); }
       });
   }
@@ -219,7 +249,7 @@
       conversations: n,
       gifts_issued: $("cGifts").value, note: $("cNote").value
     }).then(function (j) {
-      localStorage.removeItem(tallyKey());
+      localStorage.removeItem(pendingKey());
       show($("closeSheet"), false);
       return refresh();
     }).catch(function (e) {
@@ -263,12 +293,27 @@
     });
 
     $("btnConvo").addEventListener("click", function () {
-      setTaps(getTaps() + 1);
+      // Count it on screen at once — the promoter must not wait for the
+      // network with a customer walking away.
+      state.taps += 1;
       paint();
       $("btnConvo").textContent = "＋ محادثة بدون ليد   ✓";
       setTimeout(function () {
         $("btnConvo").textContent = "＋ محادثة بدون ليد";
       }, 500);
+
+      api("/api/shift/conversation", { n: 1 + getPending() })
+        .then(function (j) {
+          state.taps = j.tap_conversations;
+          setPending(0);
+          paint();
+        })
+        .catch(function () {
+          // Could not reach the server: hold it and try again on the next tap.
+          state.taps -= 1;
+          setPending(getPending() + 1);
+          paint();
+        });
     });
 
     $("btnLead").addEventListener("click", openLeadSheet);

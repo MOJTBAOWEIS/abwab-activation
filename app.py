@@ -285,6 +285,7 @@ def shift_current():
     conn.close()
     return jsonify({
         "shift": dict(row),
+        "taps": row["tap_conversations"] or 0,
         "created": created,
         "today": today,
         "qualified": len(leads),
@@ -314,6 +315,35 @@ def shift_branch():
     conn.commit()
     conn.close()
     return jsonify({"ok": True, "branch": branch})
+
+
+@app.route("/api/shift/conversation", methods=["POST"])
+@require("promoter")
+def shift_conversation():
+    """Record conversations that produced no lead, as they happen.
+
+    The phone sends these the moment they are tapped rather than holding them
+    until the shift closes, so the manager sees the top of the funnel live and
+    an unclosed shift no longer loses the count. `n` lets the phone flush a
+    backlog it buffered while offline.
+    """
+    d = request.get_json(force=True) or {}
+    try:
+        n = int(d.get("n", 1))
+    except (TypeError, ValueError):
+        return jsonify({"error": "قيمة غير صحيحة"}), 400
+    if not (-50 <= n <= 200):
+        return jsonify({"error": "قيمة خارج المدى"}), 400
+
+    code = my_promoter_code()
+    conn = db.connect()
+    row, _ = _ensure_shift(conn, code)
+    total = max(0, (row["tap_conversations"] or 0) + n)
+    conn.execute("UPDATE shifts SET tap_conversations = ? WHERE shift_key = ?",
+                 (total, row["shift_key"]))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "tap_conversations": total})
 
 
 @app.route("/api/shift/reopen", methods=["POST"])
