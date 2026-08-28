@@ -831,6 +831,20 @@ def _in_use(conn, column, value):
     return n
 
 
+@app.route("/api/storage")
+@require("manager")
+def storage_status():
+    """So the manager can see, before losing anything, whether the data is safe."""
+    st = db.storage_report()
+    conn = db.connect()
+    counts = {t: conn.execute("SELECT COUNT(*) c FROM %s" % t).fetchone()["c"]
+              for t in ("leads", "shifts", "followups")}
+    conn.close()
+    st["counts"] = counts
+    st["production"] = config.IS_PRODUCTION
+    return jsonify(st)
+
+
 @app.route("/api/setup")
 @require("manager")
 def setup_read():
@@ -1155,6 +1169,24 @@ def bootstrap():
     """Prepare the database. Safe to call repeatedly."""
     db.init()
     settings.ensure_defaults()
+
+    st = db.storage_report()
+    if config.IS_PRODUCTION and not st["persistent"]:
+        print("")
+        print("!" * 70)
+        print("DATA LOSS WARNING — the database is on temporary storage")
+        print("  path: %s" % st["path"])
+        if not st["configured"]:
+            print("  ABWAB_DB is not set.")
+        if st["inside_app_dir"]:
+            print("  It sits inside the app directory, which this host replaces")
+            print("  on every deploy.")
+        print("")
+        print("  Every lead will be destroyed the next time you deploy.")
+        print("  Fix: attach a volume mounted at /data, then set")
+        print("       ABWAB_DB=/data/abwab.db")
+        print("!" * 70)
+        print("")
 
 
 bootstrap()

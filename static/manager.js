@@ -448,7 +448,28 @@
       });
   }
 
+  // If the database is on storage the host wipes each deploy, say so loudly
+  // and permanently. Silent data loss is the worst failure this app can have.
+  function checkStorage() {
+    fetch("/api/storage").then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (st) {
+      if (!st || st.persistent || !st.production) { return; }
+      var el = document.getElementById("storageAlarm");
+      el.innerHTML =
+        "<strong>تحذير: البيانات غير محفوظة</strong><br>"
+        + "قاعدة البيانات على تخزين مؤقت — كل نشر جديد يمسح كل الليدات. "
+        + (st.configured ? "" : "المتغير <code>ABWAB_DB</code> غير مضبوط. ")
+        + "الحل: اربط قرصاً دائماً على <code>/data</code> ثم اضبط "
+        + "<code>ABWAB_DB=/data/abwab.db</code> في Railway."
+        + "<div class='sub' style='margin-top:6px'>المسار الحالي: "
+        + esc(st.path) + " · فيها الآن " + st.counts.leads + " ليد</div>";
+      el.classList.remove("hide");
+    }).catch(function () { /* never block the dashboard on this */ });
+  }
+
   function boot() {
+    checkStorage();
     $("fBranch").innerHTML = "<option value=''>كل الفروع</option>"
       + Object.keys(CFG.branches).map(function (k) {
         return "<option value='" + k + "'>" + esc(CFG.branches[k]) + "</option>";

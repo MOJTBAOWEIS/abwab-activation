@@ -13,6 +13,31 @@ DB_PATH = os.environ.get(
     "ABWAB_DB",
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "abwab.db"))
 
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def storage_report():
+    """Is the database on storage that survives a redeploy?
+
+    Most hosts hand the app a fresh filesystem on every deploy. A database
+    file living inside the application directory is therefore temporary, and
+    every lead in it is destroyed the next time the code changes — silently,
+    with no error anywhere.
+    """
+    path = os.path.abspath(DB_PATH)
+    inside_app = path.startswith(APP_DIR + os.sep)
+    configured = bool(os.environ.get("ABWAB_DB"))
+    exists = os.path.exists(path)
+    return {
+        "path": path,
+        "configured": configured,
+        "inside_app_dir": inside_app,
+        "persistent": configured and not inside_app,
+        "exists": exists,
+        "size_bytes": os.path.getsize(path) if exists else 0,
+    }
+
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS shifts (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,

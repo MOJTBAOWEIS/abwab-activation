@@ -35,8 +35,15 @@ def local():
           "ABWAB_DB = %s" % (db_env or "(محلي)"),
           "ABWAB_DB غير مضبوط — البيانات ستُمسح مع كل نشر")
 
-    print("\nقاعدة البيانات")
+    print("\nالتخزين — هل تنجو البيانات من النشر؟")
     import db
+    st = db.storage_report()
+    check(st["persistent"] or not config.IS_PRODUCTION,
+          "تخزين دائم: %s" % st["path"],
+          "خطر فقدان بيانات! %s تخزين مؤقت — كل نشر يمسحه. "
+          "اربط قرصاً على /data واضبط ABWAB_DB=/data/abwab.db" % st["path"])
+
+    print("\nقاعدة البيانات")
     conn = db.connect()
     mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
     check(mode.lower() == "wal", "journal_mode = WAL",
