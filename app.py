@@ -60,8 +60,34 @@ if config.IS_PRODUCTION:
 
 @app.route("/healthz")
 def healthz():
-    """Liveness probe for the host. Deliberately reveals nothing."""
+    """Liveness probe for the host. Deliberately reveals nothing to the public."""
+    if BOOT_ERROR:
+        return {"ok": False}, 503
     return {"ok": True}
+
+
+@app.before_request
+def _report_boot_failure():
+    """A broken database must be visible, not a blank 502."""
+    if not BOOT_ERROR or request.path in ("/healthz", "/static"):
+        return None
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "الخادم ما يقدر يفتح قاعدة البيانات. "
+                                 "راجع إعداد القرص الدائم."}), 503
+    return Response(
+        "<!doctype html><html lang=ar dir=rtl><meta charset=utf-8>"
+        "<title>خطأ في التخزين</title>"
+        "<body style='font-family:system-ui;max-width:600px;margin:60px auto;"
+        "padding:0 20px;line-height:1.7'>"
+        "<h1 style='color:#A63C19'>الخادم ما يقدر يفتح قاعدة البيانات</h1>"
+        "<p>التطبيق شغّال، لكن مسار قاعدة البيانات غير صالح للكتابة.</p>"
+        "<p><b>المسار:</b> <code>%s</code><br><b>الخطأ:</b> <code>%s</code></p>"
+        "<p>في Railway: تأكد أن <b>Mount path</b> للقرص يطابق بداية "
+        "<code>ABWAB_DB</code>. مثال: القرص على <code>/data</code> و"
+        "<code>ABWAB_DB=/data/abwab.db</code>.</p>"
+        "<p style='color:#637673'>لا تُفقد أي بيانات بسبب هذي الشاشة — "
+        "التطبيق ما كتب شيئاً.</p></body></html>"
+        % (db.DB_PATH, BOOT_ERROR), status=503, mimetype="text/html")
 
 
 # ------------------------------------------------------------------- auth
@@ -1194,10 +1220,37 @@ def setup_settings():
     return jsonify({"ok": True, "saved": len(clean)})
 
 
+BOOT_ERROR = None
+
+
 def bootstrap():
-    """Prepare the database. Safe to call repeatedly."""
-    db.init()
-    settings.ensure_defaults()
+    """Prepare the database. Safe to call repeatedly.
+
+    Never raises. If the database cannot be opened — the usual cause is a
+    volume mount path that does not match ABWAB_DB, or one the process cannot
+    write to — the failure is recorded and reported on every page instead.
+    Raising here kills the worker, the host restarts it, it dies again, and
+    the only thing anyone sees is a 502 with no explanation anywhere.
+    """
+    global BOOT_ERROR
+    try:
+        db.init()
+        settings.ensure_defaults()
+        BOOT_ERROR = None
+    except Exception as exc:                      # noqa: BLE001 - report anything
+        BOOT_ERROR = "%s: %s" % (type(exc).__name__, exc)
+        print("")
+        print("!" * 70)
+        print("STARTUP FAILED — the database could not be opened")
+        print("  ABWAB_DB : %s" % os.environ.get("ABWAB_DB", "(not set)"))
+        print("  resolved : %s" % db.DB_PATH)
+        print("  error    : %s" % BOOT_ERROR)
+        print("")
+        print("  Usually the volume mount path does not match ABWAB_DB, or the")
+        print("  process cannot write there. Check Volumes -> Mount path, and")
+        print("  set ABWAB_DB to a file inside it.")
+        print("!" * 70)
+        print("")
 
     st = db.storage_report()
     if config.IS_PRODUCTION and not st["persistent"]:
