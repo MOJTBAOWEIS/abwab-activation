@@ -150,7 +150,7 @@ def login():
         elif why == "role":
             error = "هذي الشاشة مو لحسابك. سجّل دخول بالحساب الصحيح."
 
-    people = ([("MANAGER", "مدير المشروع", "Manager")]
+    people = ([("MANAGER", "الإدارة", "Manager")]
               + [(c, settings.promoters()[c][0], "Promoter")
                  for c in settings.promoter_codes()]
               + [(c, settings.agents()[c], "Sales") for c in settings.agent_codes()])

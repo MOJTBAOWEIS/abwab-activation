@@ -341,7 +341,7 @@ RATE_LABELS = {
     "purchase": "نسبة التحويل للشراء",
     "overall": "التحويل الكلي",
 }
-OWNER_LABELS = {"Promoter": "المروّج", "Sales": "المبيعات", "Manager": "المدير"}
+OWNER_LABELS = {"Promoter": "المروّج", "Sales": "المبيعات", "Manager": "الإدارة"}
 SEVERITY_LABELS = {"critical": "حرج", "high": "مهم", "medium": "متوسط"}
 
 FLAG_LABELS = {

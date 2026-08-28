@@ -231,7 +231,7 @@
       refreshRecent();
       if (j.duplicate_of) {
         msg($("msg"), "تم الحفظ — لكن هذا الرقم مسجّل سابقاً على "
-          + j.duplicate_of + ". المدير راح يراجعه.", "warn");
+          + j.duplicate_of + ". الإدارة راح تراجعه.", "warn");
       } else {
         msg($("msg"), "تم حفظ الليد. " + j.lead_id, "ok");
         setTimeout(function () { msg($("msg"), ""); }, 3500);

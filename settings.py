@@ -190,7 +190,7 @@ def check_login(who, plain):
     """Return (role, code, name) for a correct password, else None."""
     if who == "MANAGER":
         if verify(get("manager_pin", config.MANAGER_PIN), plain):
-            return ("manager", "MANAGER", "مدير المشروع")
+            return ("manager", "MANAGER", "الإدارة")
         return None
     for r in promoter_rows():
         if r["code"] == who and r["active"] and verify(r["pin"], plain):

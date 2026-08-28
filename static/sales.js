@@ -245,7 +245,7 @@
       o.value = a; o.textContent = CFG.sales_agents[a];
       sel.appendChild(o);
     });
-    // موظف المبيعات دائماً هو نفسه. المدير الذي يغطي المكتب يختار باسم من يسجّل.
+    // موظف المبيعات دائماً هو نفسه. الإدارة عند تغطية المكتب تختار باسم من يسجّل.
     if (window.AGENT && CFG.sales_agents[window.AGENT]) { sel.value = window.AGENT; }
 
     var sf = $("statusFilter");

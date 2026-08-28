@@ -60,8 +60,8 @@ def local():
     check(not unhashed, "كل كلمات السر مشفّرة",
           "غير مشفّرة: %s" % unhashed)
     default = settings.verify(settings.get("manager_pin"), "abwabmanager9090")
-    check(not default, "كلمة سر المدير مُغيّرة",
-          "كلمة سر المدير لا تزال الافتراضية — غيّرها من الإعدادات", fatal=False)
+    check(not default, "كلمة سر الإدارة مُغيّرة",
+          "كلمة سر الإدارة لا تزال الافتراضية — غيّرها من الإعدادات", fatal=False)
 
 
 def live(url):
@@ -83,10 +83,10 @@ def live(url):
 
     try:
         r = urllib.request.urlopen(url + "/manager", timeout=20)
-        check("login" in r.url, "لوحة المدير محمية",
-              "لوحة المدير مفتوحة بدون تسجيل دخول!")
+        check("login" in r.url, "لوحة الإدارة محمية",
+              "لوحة الإدارة مفتوحة بدون تسجيل دخول!")
     except Exception:
-        check(True, "لوحة المدير محمية", "")
+        check(True, "لوحة الإدارة محمية", "")
 
     try:
         urllib.request.urlopen(url + "/api/dashboard", timeout=20)
