@@ -189,6 +189,9 @@ def _client_config():
         "sla_hours": settings.sla_hours(),
         "maturity_days": settings.maturity_days(),
         "max_attempts": settings.max_attempts(),
+        "phone_digits": settings.phone_digits(),
+        "phone_prefix": settings.phone_prefix(),
+        "phone_error": settings.phone_error(),
         # Arabic display labels. Stored values stay English; only the
         # presentation is translated.
         "labels": {
@@ -432,10 +435,9 @@ def create_lead():
     if outcome == "Captured":
         if not name:
             return jsonify({"error": "الاسم مطلوب لليد مسجّل"}), 400
-        phone_norm = db.normalise_phone(phone_raw)
-        if not db.phone_is_valid(phone_norm):
-            return jsonify({"error": "الرقم غير صحيح — "
-                                     "تأكّد من الزبون الآن"}), 400
+        phone_norm = settings.normalise_phone(phone_raw)
+        if not settings.phone_is_valid(phone_norm):
+            return jsonify({"error": settings.phone_error()}), 400
     else:
         name, phone_raw = "", ""
 
@@ -763,11 +765,31 @@ def costs():
 # ----------------------------------------------------------------- export
 
 def _csv(rows, header):
+    """CSV that Excel actually opens in Arabic.
+
+    Without the leading BOM, Excel reads a UTF-8 file as the machine's local
+    codepage and every Arabic name comes out as mojibake — which looks like the
+    export produced completely different data from the dashboard.
+    """
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(header)
     w.writerows(rows)
-    return buf.getvalue()
+    return "﻿" + buf.getvalue()
+
+
+def _ar(kind, value):
+    """The same Arabic label the dashboard shows, so the file matches the screen."""
+    return {
+        "grade": config.GRADE_LABELS,
+        "band": config.BAND_LABELS,
+        "interest": config.INTEREST_LABELS,
+        "status": config.STATUS_LABELS,
+        "outcome": config.OUTCOME_LABELS,
+        "customer_type": config.CUSTOMER_TYPE_LABELS,
+        "product": config.PRODUCT_LABELS,
+        "flag": config.FLAG_LABELS,
+    }.get(kind, {}).get(value, value or "")
 
 
 @app.route("/api/export/crm.csv")
@@ -778,14 +800,15 @@ def export_crm():
     conn = db.connect()
     data = metrics.load(conn, request.args.get("from"), request.args.get("to"))
     conn.close()
-    rows = [[l["lead_id"], l["customer_name"], l["phone_norm"], l["grade"],
-             l["interest"], l["customer_type"], l["branch_name"],
+    rows = [[l["lead_id"], l["customer_name"], l["phone_norm"],
+             _ar("grade", l["grade"]), _ar("interest", l["interest"]),
+             _ar("customer_type", l["customer_type"]), l["branch_name"],
              l["promoter_name"], l["date"], l["time"], l["promoter_note"]]
             for l in data["leads"] if l["is_crm_ready"]]
     return Response(
-        _csv(rows, ["Lead ID", "Name", "Phone", "Grade", "Interest",
-                    "Customer Type", "Branch", "Promoter", "Date", "Time",
-                    "Promoter Note"]),
+        _csv(rows, ["رقم الليد", "الاسم", "الهاتف", "الصف", "الحاجة",
+                    "نوع الزبون", "الفرع", "المروّج", "التاريخ", "الوقت",
+                    "ملاحظة المروّج"]),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=abwab_crm_export.csv"})
 
@@ -797,20 +820,25 @@ def export_leads():
     data = metrics.load(conn, request.args.get("from"), request.args.get("to"),
                         request.args.get("branch"), request.args.get("promoter"))
     conn.close()
+    within = {"Yes": "نعم", "No": "لا", "Pending": "بالانتظار"}
     rows = [[l["lead_id"], l["date"], l["time"], l["branch_name"], l["promoter_name"],
-             l["customer_name"], l["phone_norm"], l["customer_type"], l["grade"],
-             l["grade_band"], l["interest"], l["outcome"], l["status"],
-             "Yes" if l["contacted"] else "No", l["contact_ts"],
+             l["customer_name"], l["phone_norm"],
+             _ar("customer_type", l["customer_type"]), _ar("grade", l["grade"]),
+             _ar("band", l["grade_band"]), _ar("interest", l["interest"]),
+             _ar("outcome", l["outcome"]), _ar("status", l["status"]),
+             "نعم" if l["contacted"] else "لا", l["contact_ts"],
              l["hours_to_contact"] if l["hours_to_contact"] is not None else "",
-             l["within_24h"], "Yes" if l["purchase"] else "No",
-             l["purchase_date"], l["revenue"], " ".join(l["flags"])]
+             within.get(l["within_24h"], l["within_24h"]),
+             "نعم" if l["purchase"] else "لا",
+             l["purchase_date"], l["revenue"], l["promoter_note"],
+             " · ".join(_ar("flag", f) for f in l["flags"])]
             for l in data["leads"]]
     return Response(
-        _csv(rows, ["Lead ID", "Date", "Time", "Branch", "Promoter", "Name", "Phone",
-                    "Customer Type", "Grade", "Grade Band", "Interest", "Outcome",
-                    "Status", "Contacted", "Contact Time", "Hours to Contact",
-                    "Within 24h", "Purchase", "Purchase Date", "Revenue",
-                    "Promoter Note", "Flags"]),
+        _csv(rows, ["رقم الليد", "التاريخ", "الوقت", "الفرع", "المروّج",
+                    "اسم الزبون", "الهاتف", "نوع الزبون", "الصف", "المرحلة",
+                    "الحاجة", "النتيجة", "الحالة", "تم الاتصال", "وقت الاتصال",
+                    "ساعات حتى الاتصال", "خلال 24 ساعة", "اشترى",
+                    "تاريخ الشراء", "الإيراد", "ملاحظة المروّج", "المشاكل"]),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=abwab_leads.csv"})
 
@@ -1114,7 +1142,8 @@ def setup_roster_delete():
 # browser must not be able to put the scoring rules into an impossible state.
 SETTING_RULES = {
     "currency": ("text", 1, 8),
-    "phone_digits": ("int", 5, 15),
+    "phone_total_digits": ("int", 7, 15),
+    "phone_prefix": ("text", 1, 4),
     "manager_pin": ("pin", config.PASSWORD_MIN, config.PASSWORD_MAX),
     "break_hours": ("float", 0, 4),
     "maturity_days": ("int", 0, 90),

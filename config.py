@@ -10,7 +10,11 @@ import os
 # --- Identity -----------------------------------------------------------
 PROJECT_NAME = "Abwab Hypermarket Activation"
 CURRENCY = "JOD"          # change to SAR / AED / EGP as required
-PHONE_DIGITS = 9          # local mobile digits after the leading zero
+# Iraqi mobile numbers are 11 digits including the leading zero: 07XXXXXXXXX.
+# These are TOTAL digits and the required opening, both checked exactly — a
+# number that is one digit short is a number the sales team cannot call.
+PHONE_DIGITS = 11
+PHONE_PREFIX = "07"
 
 # --- Branches -----------------------------------------------------------
 # code -> display name
@@ -135,7 +139,8 @@ DEFAULT_SHIFTS = [
 # it on the dashboard instead.
 DEFAULT_SETTINGS = {
     "currency": CURRENCY,
-    "phone_digits": PHONE_DIGITS,
+    "phone_total_digits": PHONE_DIGITS,
+    "phone_prefix": PHONE_PREFIX,
     "manager_pin": MANAGER_PIN,
     "break_hours": 0.5,
     "maturity_days": 7,

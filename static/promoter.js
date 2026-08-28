@@ -200,6 +200,19 @@
     if (!l.grade) { return msg($("leadMsg"), "اختر صف الطالب.", "err"); }
     if (!l.interest) { return msg($("leadMsg"), "اختر شنو يحتاج.", "err"); }
 
+    if (l.outcome === "Captured") {
+      if (!$("cName").value.trim()) {
+        return msg($("leadMsg"), "اكتب اسم الزبون.", "err");
+      }
+      // Check here as well as on the server, so the promoter is told before
+      // the request goes out and while the customer is still standing there.
+      var digits = ($("cPhone").value || "").replace(/\D/g, "");
+      if (digits.length !== CFG.phone_digits
+          || digits.indexOf(CFG.phone_prefix) !== 0) {
+        return msg($("leadMsg"), CFG.phone_error, "err");
+      }
+    }
+
     var payload = {
       branch: state.shift ? state.shift.branch : null,
       grade: l.grade, interest: l.interest,
@@ -314,6 +327,22 @@
           setPending(getPending() + 1);
           paint();
         });
+    });
+
+    $("cPhone").addEventListener("input", function () {
+      var digits = ($("cPhone").value || "").replace(/\D/g, "");
+      var hint = $("phoneHint");
+      var need = CFG.phone_digits;
+      if (!digits.length) {
+        hint.textContent = "اقرأ الرقم للزبون قبل الحفظ.";
+        hint.style.color = "";
+      } else if (digits.length === need && digits.indexOf(CFG.phone_prefix) === 0) {
+        hint.textContent = "الرقم مكتمل ✓";
+        hint.style.color = "var(--good)";
+      } else {
+        hint.textContent = digits.length + " من " + need + " خانة";
+        hint.style.color = "var(--bad)";
+      }
     });
 
     $("btnLead").addEventListener("click", openLeadSheet);

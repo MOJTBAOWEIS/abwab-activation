@@ -453,22 +453,54 @@ def shift_hours(name):
 # ------------------------------------------------------------------- phone
 
 def phone_digits():
-    return get_int("phone_digits", config.PHONE_DIGITS)
+    """Total digits in a valid local number, leading zero included."""
+    return get_int("phone_total_digits", config.PHONE_DIGITS)
+
+
+def phone_prefix():
+    return get("phone_prefix", config.PHONE_PREFIX)
 
 
 def normalise_phone(raw):
-    """Strip every non-digit, keep the last N, re-add the leading zero."""
+    """Reduce any way of writing the number to one canonical local form.
+
+    Accepts 07XX XXX XXXX, +9647XXXXXXXX, 009647XXXXXXXX and so on. It never
+    pads or truncates to force a fit: a number that is the wrong length stays
+    the wrong length so validation can reject it. Silently trimming a digit
+    produces a number that looks valid and rings the wrong phone.
+    """
     if not raw:
         return ""
     digits = re.sub(r"\D", "", str(raw))
-    n = phone_digits()
-    if len(digits) < n:
-        return digits              # too short — kept so BAD_PHONE can flag it
-    return "0" + digits[-n:]
+    if not digits:
+        return ""
+
+    # Strip an international prefix if one was typed.
+    for cc in ("00964", "964"):
+        if digits.startswith(cc) and len(digits) > len(cc):
+            digits = digits[len(cc):]
+            break
+
+    # Local numbers are written with a leading zero; add it back if the
+    # country code swallowed it.
+    prefix = phone_prefix()
+    if prefix.startswith("0") and not digits.startswith("0"):
+        if digits.startswith(prefix[1:]):
+            digits = "0" + digits
+
+    return digits
 
 
 def phone_is_valid(norm):
-    return len(norm or "") == phone_digits() + 1
+    """Exact length and exact opening. Near misses are not accepted."""
+    n = norm or ""
+    return len(n) == phone_digits() and n.startswith(phone_prefix())
+
+
+def phone_error():
+    return ("رقم الهاتف لازم %d خانة ويبدأ بـ %s — مثال: %s"
+            % (phone_digits(), phone_prefix(),
+               phone_prefix() + "7" + "0" * (phone_digits() - len(phone_prefix()) - 1)))
 
 
 # ------------------------------------------------------- operating numbers

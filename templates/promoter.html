@@ -132,8 +132,10 @@
     </div>
     <div class="field">
       <label class="f" for="cPhone">رقم الهاتف</label>
-      <input id="cPhone" type="tel" inputmode="numeric" autocomplete="off" placeholder="07XXXXXXXX">
-      <p class="sub" style="margin-top:6px">اقرأ الرقم للزبون قبل الحفظ.</p>
+      <input id="cPhone" type="tel" inputmode="numeric" autocomplete="off"
+             maxlength="11" placeholder="07XXXXXXXXX">
+      <p class="sub" id="phoneHint" style="margin-top:6px">
+        اقرأ الرقم للزبون قبل الحفظ.</p>
     </div>
   </div>
 
