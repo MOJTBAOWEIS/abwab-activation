@@ -14,7 +14,7 @@ runtime; delete the database before going live.
 import os
 import random
 import sys
-from datetime import datetime, timedelta
+from baghdad_time import datetime, timedelta
 
 import config
 import db

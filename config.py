@@ -285,7 +285,7 @@ INTEREST_LABELS = {
     "Weak Subject": "مادة ضعيفة",
     "Full Curriculum": "المنهج كامل",
     "Daily Study Help": "مساعدة يومية",
-    "Just Exploring": "مجرد استفسار",
+    "Just Exploring": "مهتم ويريد معلومات اكثر للشراء",
 }
 CUSTOMER_TYPE_LABELS = {"Parent": "ولي أمر", "Student": "طالب"}
 OUTCOME_LABELS = {"Captured": "أخذت بياناته", "Declined": "رفض إعطاء رقمه"}
