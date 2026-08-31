@@ -829,18 +829,20 @@ def costs():
 
 # ----------------------------------------------------------------- export
 
-def _csv(rows, header):
+def _csv(rows, header, include_sep=False):
     """CSV that Excel actually opens in Arabic.
 
     Without the leading BOM, Excel reads a UTF-8 file as the machine's local
-    codepage and every Arabic name comes out as mojibake — which looks like the
-    export produced completely different data from the dashboard.
+    codepage and every Arabic name comes out as mojibake.
     """
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(header)
     w.writerows(rows)
-    return "﻿" + buf.getvalue()
+    content = buf.getvalue()
+    if include_sep:
+        content = "sep=,\n" + content
+    return ("\ufeff" + content).encode("utf-8")
 
 
 def _ar(kind, value):
@@ -873,8 +875,8 @@ def export_crm():
     return Response(
         _csv(rows, ["رقم الليد", "الاسم", "الهاتف", "الصف", "الحاجة",
                     "نوع الزبون", "الفرع", "المروّج", "التاريخ", "الوقت",
-                    "ملاحظة المروّج"]),
-        mimetype="text/csv",
+                    "ملاحظة المروّج"], include_sep=False),
+        mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=abwab_crm_export.csv"})
 
 
@@ -903,8 +905,8 @@ def export_leads():
                     "اسم الزبون", "الهاتف", "نوع الزبون", "الصف", "المرحلة",
                     "الحاجة", "النتيجة", "الحالة", "تم الاتصال", "وقت الاتصال",
                     "ساعات حتى الاتصال", "خلال 24 ساعة", "اشترى",
-                    "تاريخ الشراء", "الإيراد", "ملاحظة المروّج", "المشاكل"]),
-        mimetype="text/csv",
+                    "تاريخ الشراء", "الإيراد", "ملاحظة المروّج", "المشاكل"], include_sep=True),
+        mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=abwab_leads.csv"})
 
 

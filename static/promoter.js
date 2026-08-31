@@ -72,21 +72,35 @@
   }
 
   /* ---- chip pickers --------------------------------------------------- */
-  function buildChips(host, values, field, onPick, label) {
+  function buildChips(host, values, field, onPick, label, multiSelect) {
     host.innerHTML = "";
-    values.forEach(function (v) {
+    values.forEach(function (v, idx) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "chip";
       b.textContent = label ? label(v) : v;
       b.setAttribute("aria-pressed", "false");
       b.addEventListener("click", function () {
-        Array.prototype.forEach.call(host.children, function (c) {
-          c.setAttribute("aria-pressed", "false");
-        });
-        b.setAttribute("aria-pressed", "true");
-        state.lead[field] = v;
-        if (onPick) { onPick(v); }
+        if (multiSelect) {
+          var pressed = b.getAttribute("aria-pressed") === "true";
+          b.setAttribute("aria-pressed", pressed ? "false" : "true");
+
+          var selected = [];
+          Array.prototype.forEach.call(host.children, function (c, i) {
+            if (c.getAttribute("aria-pressed") === "true") {
+              selected.push(values[i]);
+            }
+          });
+          state.lead[field] = selected;
+          if (onPick) { onPick(selected); }
+        } else {
+          Array.prototype.forEach.call(host.children, function (c) {
+            c.setAttribute("aria-pressed", "false");
+          });
+          b.setAttribute("aria-pressed", "true");
+          state.lead[field] = v;
+          if (onPick) { onPick(v); }
+        }
       });
       host.appendChild(b);
     });
@@ -167,12 +181,12 @@
 
   /* ---- lead sheet ----------------------------------------------------- */
   function openLeadSheet() {
-    state.lead = { outcome: "Captured", customer_type: "Parent" };
+    state.lead = { outcome: "Captured", customer_type: "Parent", grade: [] };
     msg($("leadMsg"), "");
     $("cName").value = "";
     $("cPhone").value = "";
     $("lNote").value = "";
-    buildChips($("gradeChips"), CFG.grades, "grade", null, shortGrade);
+    buildChips($("gradeChips"), CFG.grades, "grade", null, shortGrade, true);
     buildChips($("interestChips"), CFG.interests, "interest", null,
       function (v) { return L("interest", v); });
     buildChips($("typeChips"), CFG.customer_types, "customer_type", null,
@@ -197,7 +211,8 @@
 
   function saveLead() {
     var l = state.lead;
-    if (!l.grade) { return msg($("leadMsg"), "اختر صف الطالب.", "err"); }
+    var selectedGrades = Array.isArray(l.grade) ? l.grade : (l.grade ? [l.grade] : []);
+    if (selectedGrades.length === 0) { return msg($("leadMsg"), "اختر صف الطالب.", "err"); }
     if (!l.interest) { return msg($("leadMsg"), "اختر شنو يحتاج.", "err"); }
 
     if (l.outcome === "Captured") {
@@ -213,12 +228,24 @@
       }
     }
 
+    var primaryGrade = selectedGrades[0];
+    var notesText = $("lNote").value.trim();
+    if (selectedGrades.length > 1) {
+      var gradesArabic = selectedGrades.map(function(g) { return shortGrade(g); }).join("، ");
+      var autoNote = "عدد الأطفال: " + selectedGrades.length + " (" + gradesArabic + ")";
+      if (notesText) {
+        notesText = autoNote + " · " + notesText;
+      } else {
+        notesText = autoNote;
+      }
+    }
+
     var payload = {
       branch: state.shift ? state.shift.branch : null,
-      grade: l.grade, interest: l.interest,
+      grade: primaryGrade, interest: l.interest,
       customer_type: l.customer_type, outcome: l.outcome,
       customer_name: $("cName").value, phone: $("cPhone").value,
-      note: $("lNote").value
+      note: notesText
     };
 
     var btn = $("leadSave");
