@@ -84,6 +84,9 @@ def ensure_defaults():
             value = hash_password(str(value))
         conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?,?)",
                      (key, str(value)))
+    # Migrate old default currency 'JOD' to the new config.CURRENCY
+    conn.execute("UPDATE settings SET value = ? WHERE key = 'currency' AND value = 'JOD'",
+                 (config.CURRENCY,))
     conn.commit()
     conn.close()
     invalidate()
