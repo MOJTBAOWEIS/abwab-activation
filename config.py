@@ -9,7 +9,7 @@ import os
 
 # --- Identity -----------------------------------------------------------
 PROJECT_NAME = "Abwab Hypermarket Activation"
-CURRENCY = "JOD"          # change to SAR / AED / EGP as required
+CURRENCY = "د.ع"          # change to SAR / AED / EGP as required
 # Iraqi mobile numbers are 11 digits including the leading zero: 07XXXXXXXXX.
 # These are TOTAL digits and the required opening, both checked exactly — a
 # number that is one digit short is a number the sales team cannot call.
