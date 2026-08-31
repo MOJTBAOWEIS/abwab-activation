@@ -829,20 +829,22 @@ def costs():
 
 # ----------------------------------------------------------------- export
 
-def _csv(rows, header, include_sep=False):
-    """CSV that Excel actually opens in Arabic.
-
-    Without the leading BOM, Excel reads a UTF-8 file as the machine's local
-    codepage and every Arabic name comes out as mojibake.
-    """
+def _csv_utf8(rows, header):
+    """Standard UTF-8 comma-separated CSV for CRM imports."""
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(header)
     w.writerows(rows)
-    content = buf.getvalue()
-    if include_sep:
-        content = "sep=,\n" + content
-    return ("\ufeff" + content).encode("utf-8")
+    return ("\ufeff" + buf.getvalue()).encode("utf-8")
+
+
+def _csv_excel(rows, header):
+    """UTF-16LE tab-separated file that Excel on both Windows and Mac opens perfectly."""
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter='\t')
+    w.writerow(header)
+    w.writerows(rows)
+    return b'\xff\xfe' + buf.getvalue().encode('utf-16-le')
 
 
 def _ar(kind, value):
@@ -873,9 +875,9 @@ def export_crm():
              l["promoter_name"], l["date"], l["time"], l["promoter_note"]]
             for l in data["leads"] if l["is_crm_ready"]]
     return Response(
-        _csv(rows, ["رقم الليد", "الاسم", "الهاتف", "الصف", "الحاجة",
-                    "نوع الزبون", "الفرع", "المروّج", "التاريخ", "الوقت",
-                    "ملاحظة المروّج"], include_sep=False),
+        _csv_utf8(rows, ["رقم الليد", "الاسم", "الهاتف", "الصف", "الحاجة",
+                         "نوع الزبون", "الفرع", "المروّج", "التاريخ", "الوقت",
+                         "ملاحظة المروّج"]),
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=abwab_crm_export.csv"})
 
@@ -901,12 +903,12 @@ def export_leads():
              " · ".join(_ar("flag", f) for f in l["flags"])]
             for l in data["leads"]]
     return Response(
-        _csv(rows, ["رقم الليد", "التاريخ", "الوقت", "الفرع", "المروّج",
-                    "اسم الزبون", "الهاتف", "نوع الزبون", "الصف", "المرحلة",
-                    "الحاجة", "النتيجة", "الحالة", "تم الاتصال", "وقت الاتصال",
-                    "ساعات حتى الاتصال", "خلال 24 ساعة", "اشترى",
-                    "تاريخ الشراء", "الإيراد", "ملاحظة المروّج", "المشاكل"], include_sep=True),
-        mimetype="text/csv; charset=utf-8",
+        _csv_excel(rows, ["رقم الليد", "التاريخ", "الوقت", "الفرع", "المروّج",
+                          "اسم الزبون", "الهاتف", "نوع الزبون", "الصف", "المرحلة",
+                          "الحاجة", "النتيجة", "الحالة", "تم الاتصال", "وقت الاتصال",
+                          "ساعات حتى الاتصال", "خلال 24 ساعة", "اشترى",
+                          "تاريخ الشراء", "الإيراد", "ملاحظة المروّج", "المشاكل"]),
+        mimetype="text/csv; charset=utf-16",
         headers={"Content-Disposition": "attachment; filename=abwab_leads.csv"})
 
 
