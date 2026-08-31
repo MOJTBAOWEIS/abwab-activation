@@ -116,7 +116,7 @@
     $("mQual").textContent = state.qualified;
     $("mCap").textContent = state.captured;
     $("pConv").textContent = state.shift && state.shift.conversations != null
-      ? state.shift.conversations : totalConversations();
+      ? Math.max(state.shift.conversations, totalConversations()) : totalConversations();
     $("pQual").textContent = state.qualified;
     $("pCap").textContent = state.captured;
 

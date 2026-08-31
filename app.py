@@ -382,7 +382,7 @@ def shift_reopen():
     code = my_promoter_code()
     key = "%s|%s" % (datetime.now().strftime("%Y-%m-%d"), code)
     conn = db.connect()
-    conn.execute("UPDATE shifts SET end_ts = NULL WHERE shift_key = ?", (key,))
+    conn.execute("UPDATE shifts SET end_ts = NULL, conversations = NULL WHERE shift_key = ?", (key,))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
@@ -486,6 +486,9 @@ def create_lead():
     while conn.execute("SELECT 1 FROM leads WHERE lead_id=?", (lead_id,)).fetchone():
         now += timedelta(seconds=1)
         lead_id = db.make_lead_id(now, code)
+
+    # Guarantee that the shift row exists for this promoter today
+    _ensure_shift(conn, code, now, branch)
 
     conn.execute(
         """INSERT INTO leads (lead_id, ts, date, branch, promoter_code, shift,

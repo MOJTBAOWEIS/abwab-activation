@@ -189,10 +189,11 @@ def load(conn, date_from=None, date_to=None, branch=None, promoter=None, now=Non
         ls = by_shift.get(s["shift_key"], [])
         s["qualified"] = len(ls)
         s["captured"] = sum(l["is_captured"] for l in ls)
-        if s["conversations"] is None:
-            # Every lead came from a conversation, so the live total is the
-            # no-lead taps plus the leads themselves.
-            s["conversations"] = s["tap_conversations"] + s["qualified"]
+        live_conv = s["tap_conversations"] + s["qualified"]
+        if s["conversations"] is None or live_conv > s["conversations"]:
+            # Every lead came from a conversation, so the total conversations must
+            # be at least the no-lead taps plus the qualified leads themselves.
+            s["conversations"] = live_conv
         if not s["closed"]:
             s["flags"].append("NO_CLOSE")
         if s["conversations"] is not None and s["qualified"] > s["conversations"]:
