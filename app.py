@@ -668,7 +668,7 @@ def create_followup():
             return jsonify({"error": "الشراء يحتاج المبلغ المدفوع فعلياً"}), 400
         if not purchase_date:
             purchase_date = datetime.now().strftime("%Y-%m-%d")
-    if status == "Invalid / Unreachable" and attempts < settings.max_attempts():
+    if status in ("No Answer", "Invalid / Unreachable") and attempts < settings.max_attempts():
         conn.close()
         return jsonify({"error": "لا تضعه «لا يرد» إلا بعد %d محاولات"
                                  % settings.max_attempts()}), 400

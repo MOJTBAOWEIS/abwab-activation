@@ -43,8 +43,16 @@
 
   function statusPill(s) {
     var tone = {
-      "New": "neutral", "Contacted": "neutral", "Follow-up": "warn",
-      "Converted": "good", "Not Converted": "bad", "Invalid / Unreachable": "bad"
+      "New": "neutral",
+      "Interested": "warn",
+      "Not Interested": "bad",
+      "Wrong Number": "bad",
+      "No Answer": "bad",
+      "Converted": "good",
+      "Contacted": "neutral",
+      "Follow-up": "warn",
+      "Not Converted": "bad",
+      "Invalid / Unreachable": "bad"
     }[s] || "mute";
     return "<span class='pill " + tone + "'>" + esc(L("status", s)) + "</span>";
   }

@@ -212,16 +212,16 @@ def run(days=14, small=False):
         p_close = close_rate * CLOSE_BY_INTEREST.get(r["interest"], 1.0)
         roll = random.random()
 
-        if roll < 0.09:
-            status, attempts, purchase = "Invalid / Unreachable", 3, False
+        if roll < 0.05:
+            status, attempts, purchase = "Wrong Number", 1, False
+        elif roll < 0.09:
+            status, attempts, purchase = "No Answer", 3, False
         elif roll < p_close + 0.09 and age >= 1:
             status, attempts, purchase = "Converted", random.choice([1, 1, 2]), True
         elif roll < 0.55:
-            status, attempts, purchase = "Not Converted", random.choice([1, 2]), False
-        elif roll < 0.80:
-            status, attempts, purchase = "Follow-up", 1, False
+            status, attempts, purchase = "Not Interested", random.choice([1, 2]), False
         else:
-            status, attempts, purchase = "Contacted", 1, False
+            status, attempts, purchase = "Interested", 1, False
 
         product = revenue = purchase_date = None
         if purchase:

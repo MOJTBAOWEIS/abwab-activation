@@ -108,13 +108,13 @@ OUTCOMES = ["Captured", "Declined"]
 
 LEAD_STATUSES = [
     "New",
-    "Contacted",
-    "Follow-up",
+    "Interested",
+    "Not Interested",
+    "Wrong Number",
+    "No Answer",
     "Converted",
-    "Not Converted",
-    "Invalid / Unreachable",
 ]
-TERMINAL_STATUSES = {"Converted", "Not Converted", "Invalid / Unreachable"}
+TERMINAL_STATUSES = {"Converted", "Not Interested", "Wrong Number"}
 
 PRODUCTS = [
     "Single Subject",
@@ -290,9 +290,16 @@ INTEREST_LABELS = {
 CUSTOMER_TYPE_LABELS = {"Parent": "ولي أمر", "Student": "طالب"}
 OUTCOME_LABELS = {"Captured": "أخذت بياناته", "Declined": "رفض إعطاء رقمه"}
 STATUS_LABELS = {
-    "New": "جديد", "Contacted": "تم الاتصال", "Follow-up": "متابعة",
-    "Converted": "اشترى", "Not Converted": "لم يشترِ",
-    "Invalid / Unreachable": "رقم خاطئ / لا يرد",
+    "New": "جديد",
+    "Interested": "مهتم",
+    "Not Interested": "غير مهتم",
+    "Wrong Number": "رقم خطا",
+    "No Answer": "لا يرد",
+    "Converted": "مباع",
+    "Contacted": "مهتم",
+    "Follow-up": "مهتم",
+    "Not Converted": "غير مهتم",
+    "Invalid / Unreachable": "رقم خطا / لا يرد",
 }
 PRODUCT_LABELS = {
     "Single Subject": "مادة واحدة", "Revision Pack": "باقة مراجعة",
