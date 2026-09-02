@@ -7,7 +7,7 @@
   var CFG = window.CFG;
   var code = window.PROMOTER || "";
   var state = { shift: null, today: "", qualified: 0, captured: 0,
-               taps: 0, lead: {} };
+               taps: 0, lead: {}, editingLeadId: null, recentLeads: [] };
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -24,9 +24,9 @@
     el.textContent = text || "";
   }
 
-  function api(path, body) {
+  function api(path, body, method) {
     var opts = { headers: { "Content-Type": "application/json" } };
-    if (body) { opts.method = "POST"; opts.body = JSON.stringify(body); }
+    if (body || method) { opts.method = method || "POST"; opts.body = body ? JSON.stringify(body) : undefined; }
     return fetch(path, opts).then(function (r) {
       return r.json().then(function (j) {
         if (!r.ok) { throw new Error(j.error || "صار خطأ، حاول مرة ثانية"); }
@@ -142,17 +142,28 @@
   function renderRecent(list) {
     var host = $("recent");
     if (!list.length) { host.innerHTML = '<div class="empty">لا توجد ليدات بعد.</div>'; return; }
+    state.recentLeads = list;
     var html = '<div class="tw"><table><tbody>';
-    list.slice(0, 8).forEach(function (l) {
+    list.slice(0, 8).forEach(function (l, idx) {
       html += "<tr><td>" + l.time + "</td>"
         + "<td><strong>" + (l.customer_name || "—") + "</strong><div class='sub'>"
         + shortGrade(l.grade) + " · " + L("interest", l.interest) + "</div></td>"
-        + "<td class='right'><span class='pill "
+        + "<td class='right' style='white-space:nowrap'><span class='pill "
         + (l.outcome === "Captured" ? "good" : "mute") + "'>" + L("outcome", l.outcome)
-        + "</span></td></tr>";
+        + "</span> <button class='btn xs edit-lead-btn' data-idx='" + idx
+        + "' style='margin-inline-start:6px;padding:3px 8px;font-size:11px'>تعديل</button></td></tr>";
     });
     html += "</tbody></table></div>";
     host.innerHTML = html;
+
+    var buttons = host.querySelectorAll(".edit-lead-btn");
+    Array.prototype.forEach.call(buttons, function (btn) {
+      btn.addEventListener("click", function () {
+        var idx = parseInt(btn.getAttribute("data-idx"), 10);
+        var lead = state.recentLeads[idx];
+        if (lead) { editLead(lead); }
+      });
+    });
   }
 
   function refreshRecent() {
@@ -181,11 +192,16 @@
 
   /* ---- lead sheet ----------------------------------------------------- */
   function openLeadSheet() {
+    state.editingLeadId = null;
     state.lead = { outcome: "Captured", customer_type: "Parent", grade: [] };
     msg($("leadMsg"), "");
     $("cName").value = "";
     $("cPhone").value = "";
     $("lNote").value = "";
+
+    var h2 = $("leadSheet").querySelector("header h2");
+    if (h2) { h2.textContent = "ليد جديد"; }
+
     buildChips($("gradeChips"), CFG.grades, "grade", null, shortGrade, true);
     buildChips($("interestChips"), CFG.interests, "interest", null,
       function (v) { return L("interest", v); });
@@ -199,6 +215,46 @@
     preselect($("outcomeChips"), L("outcome", "Captured"));
     show($("captureFields"), true);
     $("leadSave").textContent = "حفظ الليد";
+    show($("leadSheet"), true);
+    window.scrollTo(0, 0);
+  }
+
+  function editLead(lead) {
+    state.editingLeadId = lead.lead_id;
+    state.lead = {
+      outcome: lead.outcome,
+      customer_type: lead.customer_type,
+      interest: lead.interest,
+      grade: [lead.grade]
+    };
+    msg($("leadMsg"), "");
+    $("cName").value = lead.customer_name || "";
+    $("cPhone").value = lead.phone || lead.phone_raw || "";
+
+    var noteVal = lead.promoter_note || lead.note || "";
+    noteVal = noteVal.replace(/^عدد الأطفال:\s*\d+\s*\([^\)]+\)\s*(·\s*)?/, "");
+    $("lNote").value = noteVal;
+
+    var h2 = $("leadSheet").querySelector("header h2");
+    if (h2) { h2.textContent = "تعديل الليد (" + lead.lead_id + ")"; }
+
+    buildChips($("gradeChips"), CFG.grades, "grade", null, shortGrade, true);
+    buildChips($("interestChips"), CFG.interests, "interest", null,
+      function (v) { return L("interest", v); });
+    buildChips($("typeChips"), CFG.customer_types, "customer_type", null,
+      function (v) { return L("customer_type", v); });
+    buildChips($("outcomeChips"), CFG.outcomes, "outcome", function (v) {
+      show($("captureFields"), v === "Captured");
+      $("leadSave").textContent = "تحديث الليد";
+    }, function (v) { return L("outcome", v); });
+
+    preselect($("gradeChips"), shortGrade(lead.grade));
+    preselect($("interestChips"), L("interest", lead.interest));
+    preselect($("typeChips"), L("customer_type", lead.customer_type));
+    preselect($("outcomeChips"), L("outcome", lead.outcome));
+
+    show($("captureFields"), lead.outcome === "Captured");
+    $("leadSave").textContent = "تحديث الليد";
     show($("leadSheet"), true);
     window.scrollTo(0, 0);
   }
@@ -248,19 +304,23 @@
       note: notesText
     };
 
+    var path = state.editingLeadId ? "/api/leads/" + state.editingLeadId : "/api/leads";
+    var method = state.editingLeadId ? "PUT" : "POST";
+
     var btn = $("leadSave");
     btn.disabled = true;
-    api("/api/leads", payload).then(function (j) {
+    api(path, payload, method).then(function (j) {
       state.qualified = j.qualified_today;
       state.captured = j.captured_today;
       show($("leadSheet"), false);
+      state.editingLeadId = null;
       paint();
       refreshRecent();
       if (j.duplicate_of) {
         msg($("msg"), "تم الحفظ — لكن هذا الرقم مسجّل سابقاً على "
           + j.duplicate_of + ". الإدارة راح تراجعه.", "warn");
       } else {
-        msg($("msg"), "تم حفظ الليد. " + j.lead_id, "ok");
+        msg($("msg"), method === "PUT" ? "تم تحديث الليد بنجاح." : ("تم حفظ الليد. " + j.lead_id), "ok");
         setTimeout(function () { msg($("msg"), ""); }, 3500);
       }
     }).catch(function (e) {

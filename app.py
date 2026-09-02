@@ -515,6 +515,89 @@ def create_lead():
     })
 
 
+@app.route("/api/leads/<lead_id>", methods=["PUT", "POST"])
+@require("promoter", "manager")
+def update_lead(lead_id):
+    conn = db.connect()
+    lead = conn.execute("SELECT * FROM leads WHERE lead_id=?", (lead_id,)).fetchone()
+    if not lead:
+        conn.close()
+        return jsonify({"error": "رقم الليد غير موجود"}), 404
+
+    role = session.get("role")
+    code = my_promoter_code()
+    if role == "promoter" and lead["promoter_code"] != code:
+        conn.close()
+        return jsonify({"error": "لا يمكنك تعديل ليد شخص آخر"}), 403
+
+    d = request.get_json(force=True)
+    grade = (d.get("grade") or "").strip()
+    interest = (d.get("interest") or "").strip()
+    outcome = (d.get("outcome") or "").strip()
+    ctype = (d.get("customer_type") or "").strip()
+
+    if grade not in config.GRADES:
+        conn.close()
+        return jsonify({"error": "صف الطالب مطلوب لتأهيل الليد"}), 400
+    if interest not in config.INTERESTS:
+        conn.close()
+        return jsonify({"error": "الحاجة مطلوبة لتأهيل الليد"}), 400
+    if outcome not in config.OUTCOMES:
+        conn.close()
+        return jsonify({"error": "النتيجة مطلوبة"}), 400
+    if ctype not in config.CUSTOMER_TYPES:
+        conn.close()
+        return jsonify({"error": "نوع الزبون مطلوب"}), 400
+
+    name = (d.get("customer_name") or "").strip()
+    phone_raw = (d.get("phone") or "").strip()
+    note = (d.get("note") or "").strip()[:300]
+    phone_norm = ""
+
+    if outcome == "Captured":
+        if not name:
+            conn.close()
+            return jsonify({"error": "الاسم مطلوب لليد مسجّل"}), 400
+        phone_norm = settings.normalise_phone(phone_raw)
+        if not settings.phone_is_valid(phone_norm):
+            conn.close()
+            return jsonify({"error": settings.phone_error()}), 400
+    else:
+        name, phone_raw, phone_norm = "", "", ""
+
+    duplicate_of = None
+    if phone_norm and phone_norm != lead["phone_norm"]:
+        prev = conn.execute(
+            "SELECT lead_id FROM leads WHERE phone_norm=? AND lead_id!=? ORDER BY ts LIMIT 1",
+            (phone_norm, lead_id)).fetchone()
+        if prev:
+            duplicate_of = prev["lead_id"]
+
+    conn.execute(
+        """UPDATE leads
+           SET grade=?, interest=?, customer_type=?, outcome=?,
+               customer_name=?, phone_raw=?, phone_norm=?, note=?
+           WHERE lead_id=?""",
+        (grade, interest, ctype, outcome, name, phone_raw, phone_norm, note, lead_id))
+    conn.commit()
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    promoter_code = lead["promoter_code"]
+    counts = conn.execute(
+        "SELECT outcome, COUNT(*) c FROM leads WHERE date=? AND promoter_code=? GROUP BY outcome",
+        (today, promoter_code)).fetchall()
+    conn.close()
+
+    tally = {r["outcome"]: r["c"] for r in counts}
+    return jsonify({
+        "ok": True,
+        "lead_id": lead_id,
+        "duplicate_of": duplicate_of,
+        "captured_today": tally.get("Captured", 0),
+        "qualified_today": sum(tally.values()),
+    })
+
+
 @app.route("/api/leads")
 @require("promoter", "sales", "manager")
 def list_leads():
@@ -532,6 +615,7 @@ def _lead_json(l):
         "lead_id": l["lead_id"], "date": l["date"], "time": l["time"],
         "branch": l["branch_name"], "promoter": l["promoter_name"],
         "customer_name": l["customer_name"], "phone": l["phone_norm"],
+        "phone_raw": l.get("phone_raw", l["phone_norm"]),
         "customer_type": l["customer_type"],
         "grade": l["grade"], "grade_band": l["grade_band"],
         "interest": l["interest"], "outcome": l["outcome"],
