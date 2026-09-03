@@ -10,9 +10,18 @@
   var current = null;
   var picked = { status: null };
 
+  var pickedProducts = [];
+
   /* القيم مخزّنة بالإنجليزية؛ العرض فقط بالعربي. */
   function L(kind, value) {
+    if (!value) return "";
     var m = (CFG.labels || {})[kind] || {};
+    if (kind === "product" && typeof value === "string" && value.indexOf(",") !== -1) {
+      return value.split(",").map(function (s) {
+        var trimmed = s.trim();
+        return m[trimmed] || trimmed;
+      }).join("، ");
+    }
     return m[value] || value;
   }
 
@@ -158,11 +167,42 @@
     });
   }
 
+  function renderProductChips() {
+    var host = $("productChips");
+    if (!host) return;
+    host.innerHTML = "";
+    CFG.products.forEach(function (p) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = L("product", p);
+      if (pickedProducts.indexOf(p) !== -1) {
+        b.setAttribute("aria-pressed", "true");
+      }
+      b.addEventListener("click", function () {
+        var idx = pickedProducts.indexOf(p);
+        if (idx === -1) {
+          pickedProducts.push(p);
+          b.setAttribute("aria-pressed", "true");
+        } else {
+          pickedProducts.splice(idx, 1);
+          b.setAttribute("aria-pressed", "false");
+        }
+      });
+      host.appendChild(b);
+    });
+  }
+
   /* ---------------- درج التسجيل ---------------- */
   function openDrawer(leadId) {
     current = leads.filter(function (l) { return l.lead_id === leadId; })[0];
     if (!current) { return; }
     picked.status = null;
+    if (current.product) {
+      pickedProducts = current.product.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    } else {
+      pickedProducts = [];
+    }
     msg($("drawerMsg"), "");
     $("dLeadId").textContent = current.lead_id;
     $("dName").textContent = current.customer_name || "(بدون اسم)";
@@ -189,6 +229,8 @@
     $("dNotes").value = "";
     $("dContactTs").value = "";
     $("dPurchaseDate").value = new Date().toISOString().slice(0, 10);
+
+    renderProductChips();
 
     var host = $("statusChips");
     host.innerHTML = "";
@@ -217,9 +259,12 @@
       contact_ts: $("dContactTs").value
     };
     if (picked.status === "Converted") {
+      if (pickedProducts.length === 0) {
+        return msg($("drawerMsg"), "اختر باقة أو منهج واحد على الأقل.", "err");
+      }
       body.purchase = true;
       body.revenue = $("dRevenue").value;
-      body.product = $("dProduct").value;
+      body.product = pickedProducts.join(", ");
       body.purchase_date = $("dPurchaseDate").value;
     }
     $("dSave").disabled = true;
@@ -264,9 +309,6 @@
     sf.addEventListener("change", renderLeads);
     $("search").addEventListener("input", renderLeads);
 
-    $("dProduct").innerHTML = CFG.products.map(function (p) {
-      return "<option value='" + esc(p) + "'>" + esc(L("product", p)) + "</option>";
-    }).join("");
     Array.prototype.forEach.call(document.querySelectorAll(".cur"), function (e) {
       e.textContent = CFG.currency;
     });

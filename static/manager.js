@@ -9,7 +9,14 @@
 
   /* القيم مخزّنة بالإنجليزية في قاعدة البيانات — العرض فقط بالعربي. */
   function L(kind, value) {
+    if (!value) return "";
     var m = (CFG.labels || {})[kind] || {};
+    if (kind === "product" && typeof value === "string" && value.indexOf(",") !== -1) {
+      return value.split(",").map(function (s) {
+        var trimmed = s.trim();
+        return m[trimmed] || trimmed;
+      }).join("، ");
+    }
     return m[value] || value;
   }
 

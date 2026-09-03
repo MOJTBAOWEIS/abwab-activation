@@ -659,7 +659,11 @@ def create_followup():
     purchase = bool(d.get("purchase"))
     revenue = float(d.get("revenue") or 0)
     purchase_date = (d.get("purchase_date") or "").strip()
-    product = (d.get("product") or "").strip()
+    product_raw = d.get("product")
+    if isinstance(product_raw, list):
+        product = ", ".join([str(p).strip() for p in product_raw if str(p).strip()])
+    else:
+        product = (str(product_raw or "")).strip()
 
     if status == "Converted":
         purchase = True
