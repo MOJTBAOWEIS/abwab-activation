@@ -135,6 +135,36 @@
     return true;
   }
 
+  function updateExportLinks() {
+    var qFilterMode = $("queueDateFilter") ? $("queueDateFilter").value : "all";
+    var qCustomFrom = $("queueDateFrom") ? $("queueDateFrom").value : "";
+    var qCustomTo = $("queueDateTo") ? $("queueDateTo").value : "";
+    var qRange = getDateRange(qFilterMode, qCustomFrom, qCustomTo);
+
+    var qParams = ["queue=1"];
+    if (qRange.from) qParams.push("from=" + encodeURIComponent(qRange.from));
+    if (qRange.to) qParams.push("to=" + encodeURIComponent(qRange.to));
+    var qBtn = $("exportQueueBtn");
+    if (qBtn) {
+      qBtn.href = "/api/export/leads.csv?" + qParams.join("&");
+    }
+
+    var lFilterMode = $("leadsDateFilter") ? $("leadsDateFilter").value : "all";
+    var lCustomFrom = $("leadsDateFrom") ? $("leadsDateFrom").value : "";
+    var lCustomTo = $("leadsDateTo") ? $("leadsDateTo").value : "";
+    var lRange = getDateRange(lFilterMode, lCustomFrom, lCustomTo);
+    var sf = $("statusFilter") ? $("statusFilter").value : "";
+
+    var lParams = [];
+    if (lRange.from) lParams.push("from=" + encodeURIComponent(lRange.from));
+    if (lRange.to) lParams.push("to=" + encodeURIComponent(lRange.to));
+    if (sf) lParams.push("status=" + encodeURIComponent(sf));
+    var lBtn = $("exportLeadsBtn");
+    if (lBtn) {
+      lBtn.href = "/api/export/leads.csv" + (lParams.length ? "?" + lParams.join("&") : "");
+    }
+  }
+
   /* ---------------- قائمة الاتصال ---------------- */
   function renderQueue(rows) {
     if (rows) { rawQueue = rows; }
@@ -153,6 +183,8 @@
       summaryEl.textContent = "إجمالي ليدات قائمة الاتصال في هذه التصفية: " + filtered.length + " ليد"
         + (filterMode !== "all" ? " (مقسمة حسب التواريخ)" : "");
     }
+
+    updateExportLinks();
 
     var host = $("queue");
     if (!filtered.length) {
@@ -259,6 +291,8 @@
       var totalConv = rows.filter(function (l) { return l.purchase; }).length;
       summaryEl.textContent = "إجمالي الليدات المعروضة: " + rows.length + " ليد | تم الشراء: " + totalConv + " (الإيراد: " + money(totalRev) + ")";
     }
+
+    updateExportLinks();
 
     var host = $("leads");
     if (!rows.length) { host.innerHTML = '<div class="empty">لا توجد نتائج مطابقة للتصفية.</div>'; return; }

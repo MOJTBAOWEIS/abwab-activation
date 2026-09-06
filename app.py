@@ -974,13 +974,30 @@ def export_crm():
 
 
 @app.route("/api/export/leads.csv")
-@require("manager")
+@require("sales", "manager")
 def export_leads():
     conn = db.connect()
     data = metrics.load(conn, request.args.get("from"), request.args.get("to"),
                         request.args.get("branch"), request.args.get("promoter"))
     conn.close()
+
+    status_filter = request.args.get("status")
+    queue_only = request.args.get("queue") == "1"
+
     within = {"Yes": "نعم", "No": "لا", "Pending": "بالانتظار"}
+
+    leads_list = data["leads"]
+    if queue_only:
+        leads_list = [l for l in leads_list if l["is_captured"] and not l["contacted"]]
+    elif status_filter:
+        leads_list = [l for l in leads_list if l["status"] == status_filter]
+
+    def _fmt_prod(p):
+        if not p:
+            return ""
+        parts = [x.strip() for x in p.split(",") if x.strip()]
+        return "، ".join(_ar("product", x) for x in parts)
+
     rows = [[l["lead_id"], l["date"], l["time"], l["branch_name"], l["promoter_name"],
              l["customer_name"], l["phone_norm"],
              _ar("customer_type", l["customer_type"]), _ar("grade", l["grade"]),
@@ -990,17 +1007,20 @@ def export_leads():
              l["hours_to_contact"] if l["hours_to_contact"] is not None else "",
              within.get(l["within_24h"], l["within_24h"]),
              "نعم" if l["purchase"] else "لا",
-             l["purchase_date"], l["revenue"], l["promoter_note"],
+             l["purchase_date"], l["revenue"], _fmt_prod(l["product"]),
+             l["promoter_note"],
              " · ".join(_ar("flag", f) for f in l["flags"])]
-            for l in data["leads"]]
+            for l in leads_list]
+
+    filename = "abwab_sales_queue.csv" if queue_only else "abwab_leads_export.csv"
     return Response(
         _csv_utf8(rows, ["رقم الليد", "التاريخ", "الوقت", "الفرع", "المروّج",
                          "اسم الزبون", "الهاتف", "نوع الزبون", "الصف", "المرحلة",
                          "الحاجة", "النتيجة", "الحالة", "تم الاتصال", "وقت الاتصال",
                          "ساعات حتى الاتصال", "خلال 24 ساعة", "اشترى",
-                         "تاريخ الشراء", "الإيراد", "ملاحظة المروّج", "المشاكل"]),
+                         "تاريخ الشراء", "الإيراد (د.ع)", "الباقة/المنهج", "ملاحظة المروّج", "المشاكل"]),
         mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": "attachment; filename=abwab_leads.csv"})
+        headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 
 # ---------------------------------------------------------------- settings

@@ -78,6 +78,7 @@
         </select>
         <input id="queueDateFrom" type="date" class="hide" style="width:135px">
         <input id="queueDateTo" type="date" class="hide" style="width:135px">
+        <a id="exportQueueBtn" class="btn sm" href="/api/export/leads.csv?queue=1" download target="_blank" style="white-space:nowrap; background:var(--card); border:1px solid var(--border)">📥 تصدير لكوكل شيت</a>
       </div>
     </header>
     <div id="queueSummary" class="sub" style="margin-bottom:12px; font-weight:600; color:var(--text); font-size:13px"></div>
@@ -90,9 +91,10 @@
         <h2>كل الليدات</h2>
         <span class="hint">ابحث بالاسم أو الرقم أو رقم الليد أو المروّج أو الحالة أو التاريخ.</span>
       </div>
+      <a id="exportLeadsBtn" class="btn sm" href="/api/export/leads.csv" download target="_blank" style="white-space:nowrap; background:var(--card); border:1px solid var(--border)">📥 تصدير لكوكل شيت (CSV)</a>
     </header>
-    <div class="row gap" style="margin-bottom:12px; flex-wrap:wrap">
-      <input id="search" type="search" placeholder="بحث باسم الزبون، الرقم، المروّج، رقم الليد..." style="flex:2; min-width:220px">
+    <div class="row gap" style="margin-bottom:12px; flex-wrap:wrap; align-items:center">
+      <input id="search" type="search" placeholder="بحث باسم الزبون، الرقم، المروّج، رقم الليد..." style="flex:2; min-width:200px">
       <select id="statusFilter" style="flex:1; min-width:140px"></select>
       <select id="leadsDateFilter" style="flex:1; min-width:140px; font-weight:500">
         <option value="all">كل التواريخ</option>
