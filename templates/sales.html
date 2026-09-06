@@ -26,6 +26,19 @@
   .pnote .k{display:block; font-size:10px; letter-spacing:.06em; font-weight:600;
     color:var(--warn); margin-bottom:4px}
   td.notecell{max-width:220px; white-space:normal; color:var(--muted); font-size:11.5px}
+  .date-group { margin-bottom: 20px; }
+  .date-group-header {
+    background: var(--card);
+    border-inline-start: 4px solid var(--primary);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>
@@ -50,24 +63,49 @@
   <div class="grid g4" id="tiles"></div>
 
   <div class="section">
-    <header>
-      <h2>قائمة الاتصال</h2>
-      <span class="hint">ليدات جاهزة ولم يُتصل بها، الأقل وقتاً أولاً. الصف الأحمر زبون تكلّم مع مروّج ولم يصله أي رد.</span>
+    <header class="spread" style="flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px">
+      <div>
+        <h2>قائمة الاتصال</h2>
+        <span class="hint">ليدات جاهزة ولم يُتصل بها، مقسمة حسب الأيام. الأقل وقتاً أولاً.</span>
+      </div>
+      <div class="row gap" style="align-items:center; flex-wrap:wrap">
+        <select id="queueDateFilter" style="min-width:140px; font-weight:500">
+          <option value="all">كل الأيام</option>
+          <option value="today">اليوم</option>
+          <option value="yesterday">أمس</option>
+          <option value="week">هذا الأسبوع</option>
+          <option value="custom">تاريخ محدد...</option>
+        </select>
+        <input id="queueDateFrom" type="date" class="hide" style="width:135px">
+        <input id="queueDateTo" type="date" class="hide" style="width:135px">
+      </div>
     </header>
-    <div class="tw" id="queue"></div>
+    <div id="queueSummary" class="sub" style="margin-bottom:12px; font-weight:600; color:var(--text); font-size:13px"></div>
+    <div id="queue"></div>
   </div>
 
   <div class="section">
-    <header>
-      <h2>كل الليدات</h2>
-      <span class="hint">ابحث بالاسم أو الرقم أو رقم الليد أو المروّج أو الحالة.</span>
-      <div class="spacer" style="flex:1"></div>
+    <header class="spread" style="flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px">
+      <div>
+        <h2>كل الليدات</h2>
+        <span class="hint">ابحث بالاسم أو الرقم أو رقم الليد أو المروّج أو الحالة أو التاريخ.</span>
+      </div>
     </header>
-    <div class="row" style="margin-bottom:12px">
-      <input id="search" type="search" placeholder="بحث…" style="flex:2">
-      <select id="statusFilter" style="flex:1"></select>
+    <div class="row gap" style="margin-bottom:12px; flex-wrap:wrap">
+      <input id="search" type="search" placeholder="بحث باسم الزبون، الرقم، المروّج، رقم الليد..." style="flex:2; min-width:220px">
+      <select id="statusFilter" style="flex:1; min-width:140px"></select>
+      <select id="leadsDateFilter" style="flex:1; min-width:140px; font-weight:500">
+        <option value="all">كل التواريخ</option>
+        <option value="today">اليوم</option>
+        <option value="yesterday">أمس</option>
+        <option value="week">هذا الأسبوع</option>
+        <option value="custom">تاريخ محدد...</option>
+      </select>
+      <input id="leadsDateFrom" type="date" class="hide" style="width:135px">
+      <input id="leadsDateTo" type="date" class="hide" style="width:135px">
     </div>
-    <div class="tw" id="leads"></div>
+    <div id="leadsSummary" class="sub" style="margin-bottom:12px; font-weight:600; color:var(--text); font-size:13px"></div>
+    <div id="leads"></div>
   </div>
 </div>
 

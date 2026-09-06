@@ -66,36 +66,144 @@
     return "<span class='pill " + tone + "'>" + esc(L("status", s)) + "</span>";
   }
 
+  var rawQueue = [];
+
+  function formatArabicDate(dateStr) {
+    if (!dateStr) return "تاريخ غير محدد";
+    var parts = dateStr.split("-");
+    if (parts.length !== 3) return dateStr;
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+
+    var todayObj = new Date();
+    var todayStr = todayObj.getFullYear() + "-"
+      + String(todayObj.getMonth() + 1).padStart(2, '0') + "-"
+      + String(todayObj.getDate()).padStart(2, '0');
+    
+    var yestObj = new Date();
+    yestObj.setDate(yestObj.getDate() - 1);
+    var yestStr = yestObj.getFullYear() + "-"
+      + String(yestObj.getMonth() + 1).padStart(2, '0') + "-"
+      + String(yestObj.getDate()).padStart(2, '0');
+
+    var days = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+    var dayName = days[d.getDay()];
+
+    if (dateStr === todayStr) {
+      return "اليوم — " + dayName + " (" + dateStr + ")";
+    } else if (dateStr === yestStr) {
+      return "أمس — " + dayName + " (" + dateStr + ")";
+    } else {
+      return dayName + " (" + dateStr + ")";
+    }
+  }
+
+  function getDateRange(mode, customFrom, customTo) {
+    var todayObj = new Date();
+    var todayStr = todayObj.getFullYear() + "-"
+      + String(todayObj.getMonth() + 1).padStart(2, '0') + "-"
+      + String(todayObj.getDate()).padStart(2, '0');
+
+    if (mode === "today") {
+      return { from: todayStr, to: todayStr };
+    } else if (mode === "yesterday") {
+      var yestObj = new Date();
+      yestObj.setDate(yestObj.getDate() - 1);
+      var yestStr = yestObj.getFullYear() + "-"
+        + String(yestObj.getMonth() + 1).padStart(2, '0') + "-"
+        + String(yestObj.getDate()).padStart(2, '0');
+      return { from: yestStr, to: yestStr };
+    } else if (mode === "week") {
+      var day = todayObj.getDay();
+      var diffToSat = (day + 1) % 7;
+      var sat = new Date(todayObj);
+      sat.setDate(todayObj.getDate() - diffToSat);
+      var satStr = sat.getFullYear() + "-"
+        + String(sat.getMonth() + 1).padStart(2, '0') + "-"
+        + String(sat.getDate()).padStart(2, '0');
+      return { from: satStr, to: todayStr };
+    } else if (mode === "custom") {
+      return { from: customFrom || null, to: customTo || null };
+    }
+    return { from: null, to: null };
+  }
+
+  function matchesDate(dateStr, range) {
+    if (!dateStr) return true;
+    var d = dateStr.slice(0, 10);
+    if (range.from && d < range.from) return false;
+    if (range.to && d > range.to) return false;
+    return true;
+  }
+
   /* ---------------- قائمة الاتصال ---------------- */
   function renderQueue(rows) {
+    if (rows) { rawQueue = rows; }
+    var filterMode = $("queueDateFilter") ? $("queueDateFilter").value : "all";
+    var customFrom = $("queueDateFrom") ? $("queueDateFrom").value : "";
+    var customTo = $("queueDateTo") ? $("queueDateTo").value : "";
+    var range = getDateRange(filterMode, customFrom, customTo);
+
+    var filtered = rawQueue.filter(function (r) {
+      var dateStr = r.date || (r.ts ? r.ts.slice(0, 10) : "");
+      return matchesDate(dateStr, range);
+    });
+
+    var summaryEl = $("queueSummary");
+    if (summaryEl) {
+      summaryEl.textContent = "إجمالي ليدات قائمة الاتصال في هذه التصفية: " + filtered.length + " ليد"
+        + (filterMode !== "all" ? " (مقسمة حسب التواريخ)" : "");
+    }
+
     var host = $("queue");
-    if (!rows.length) {
-      host.innerHTML = '<div class="empty">القائمة فاضية — تم الاتصال بكل الليدات الجاهزة.</div>';
+    if (!filtered.length) {
+      host.innerHTML = '<div class="empty">القائمة فاضية — لا توجد ليدات مطابقة للتصفية المحددة.</div>';
       return;
     }
-    var h = "<table><thead><tr><th>المهلة</th><th>الزبون</th><th class='n'>الهاتف</th>"
-      + "<th>الصف</th><th>الحاجة</th><th>ملاحظة المروّج</th>"
-      + "<th>المروّج</th><th>الفرع</th></tr></thead><tbody>";
-    rows.forEach(function (r) {
-      var left = r.hours_remaining < 0
-        ? "متأخر " + Math.abs(r.hours_remaining).toFixed(1) + " س"
-        : "باقي " + r.hours_remaining.toFixed(1) + " س";
-      var phoneCell = r.callable
-        ? esc(r.phone)
-        : "<span class='pill bad'>" + esc(r.issue) + "</span>"
-          + (r.phone ? "<div class='sub'>" + esc(r.phone) + "</div>" : "");
-      h += "<tr class='qrow " + r.state + (r.callable ? "" : " broken")
-        + "' data-id='" + esc(r.lead_id) + "'>"
-        + "<td class='n rem'>" + left + "</td>"
-        + "<td><strong>" + esc(r.customer_name) + "</strong></td>"
-        + "<td class='n'>" + phoneCell + "</td>"
-        + "<td>" + esc(L("grade", r.grade)) + "</td>"
-        + "<td>" + esc(L("interest", r.interest)) + "</td>"
-        + "<td class='notecell'>" + esc(r.promoter_note || "") + "</td>"
-        + "<td>" + esc(r.promoter_name) + "</td>"
-        + "<td>" + esc(r.branch_name) + "</td></tr>";
+
+    var groups = {};
+    filtered.forEach(function (r) {
+      var d = r.date || (r.ts ? r.ts.slice(0, 10) : "غير محدد");
+      if (!groups[d]) { groups[d] = []; }
+      groups[d].push(r);
     });
-    host.innerHTML = h + "</tbody></table>";
+
+    var dates = Object.keys(groups).sort().reverse();
+    var html = "";
+    dates.forEach(function (dateKey) {
+      var dayRows = groups[dateKey];
+      html += "<div class='date-group'>"
+        + "<div class='date-group-header'>"
+        + "<span>📅 " + esc(formatArabicDate(dateKey)) + "</span>"
+        + "<span class='pill primary'>" + dayRows.length + " ليد</span>"
+        + "</div>"
+        + "<div class='tw'><table><thead><tr><th>المهلة</th><th>الزبون</th><th class='n'>الهاتف</th>"
+        + "<th>الصف</th><th>الحاجة</th><th>ملاحظة المروّج</th>"
+        + "<th>المروّج</th><th>الفرع</th></tr></thead><tbody>";
+
+      dayRows.forEach(function (r) {
+        var left = r.hours_remaining < 0
+          ? "متأخر " + Math.abs(r.hours_remaining).toFixed(1) + " س"
+          : "باقي " + r.hours_remaining.toFixed(1) + " س";
+        var phoneCell = r.callable
+          ? esc(r.phone)
+          : "<span class='pill bad'>" + esc(r.issue) + "</span>"
+            + (r.phone ? "<div class='sub'>" + esc(r.phone) + "</div>" : "");
+        html += "<tr class='qrow " + r.state + (r.callable ? "" : " broken")
+          + "' data-id='" + esc(r.lead_id) + "'>"
+          + "<td class='n rem'>" + left + "</td>"
+          + "<td><strong>" + esc(r.customer_name) + "</strong></td>"
+          + "<td class='n'>" + phoneCell + "</td>"
+          + "<td>" + esc(L("grade", r.grade)) + "</td>"
+          + "<td>" + esc(L("interest", r.interest)) + "</td>"
+          + "<td class='notecell'>" + esc(r.promoter_note || "") + "</td>"
+          + "<td>" + esc(r.promoter_name) + "</td>"
+          + "<td>" + esc(r.branch_name) + "</td></tr>";
+      });
+
+      html += "</tbody></table></div></div>";
+    });
+
+    host.innerHTML = html;
     Array.prototype.forEach.call(host.querySelectorAll(".qrow"), function (tr) {
       tr.addEventListener("click", function () { openDrawer(tr.dataset.id); });
     });
@@ -130,38 +238,73 @@
   function renderLeads() {
     var q = ($("search").value || "").toLowerCase();
     var sf = $("statusFilter").value;
+    var filterMode = $("leadsDateFilter") ? $("leadsDateFilter").value : "all";
+    var customFrom = $("leadsDateFrom") ? $("leadsDateFrom").value : "";
+    var customTo = $("leadsDateTo") ? $("leadsDateTo").value : "";
+    var range = getDateRange(filterMode, customFrom, customTo);
+
     var rows = leads.filter(function (l) {
       if (sf && l.status !== sf) { return false; }
+      if (!matchesDate(l.date, range)) { return false; }
       if (!q) { return true; }
-      return [l.lead_id, l.customer_name, l.phone, l.promoter, l.branch,
+      return [l.lead_id, l.customer_name, l.phone, l.promoter, l.branch, l.date,
         L("grade", l.grade), L("interest", l.interest), L("status", l.status),
         l.promoter_note || ""]
         .join(" ").toLowerCase().indexOf(q) >= 0;
     });
 
+    var summaryEl = $("leadsSummary");
+    if (summaryEl) {
+      var totalRev = rows.reduce(function (a, l) { return a + (l.revenue || 0); }, 0);
+      var totalConv = rows.filter(function (l) { return l.purchase; }).length;
+      summaryEl.textContent = "إجمالي الليدات المعروضة: " + rows.length + " ليد | تم الشراء: " + totalConv + " (الإيراد: " + money(totalRev) + ")";
+    }
+
     var host = $("leads");
-    if (!rows.length) { host.innerHTML = '<div class="empty">لا توجد نتائج.</div>'; return; }
-    var h = "<table><thead><tr><th>رقم الليد</th><th>الزبون</th><th class='n'>الهاتف</th>"
-      + "<th>الصف</th><th>الحاجة</th><th>المروّج</th><th>الحالة</th>"
-      + "<th>24 ساعة</th><th>ملاحظة المروّج</th>"
-      + "<th class='n'>الإيراد</th><th></th></tr></thead><tbody>";
+    if (!rows.length) { host.innerHTML = '<div class="empty">لا توجد نتائج مطابقة للتصفية.</div>'; return; }
+
+    var groups = {};
     rows.slice(0, 300).forEach(function (l) {
-      var w = l.within_24h;
-      var wp = w === "Yes" ? "good" : (w === "Pending" ? "warn" : "bad");
-      var wt = { "Yes": "نعم", "No": "لا", "Pending": "بالانتظار" }[w] || w;
-      h += "<tr><td class='mono' style='font-size:11px'>" + esc(l.lead_id) + "</td>"
-        + "<td><strong>" + esc(l.customer_name || "—") + "</strong></td>"
-        + "<td class='n'>" + esc(l.phone || "—") + "</td>"
-        + "<td>" + esc(L("grade", l.grade)) + "</td>"
-        + "<td>" + esc(L("interest", l.interest)) + "</td>"
-        + "<td>" + esc(l.promoter) + "</td>"
-        + "<td>" + statusPill(l.status) + "</td>"
-        + "<td><span class='pill " + wp + "'>" + wt + "</span></td>"
-        + "<td class='notecell'>" + esc(l.promoter_note || "") + "</td>"
-        + "<td class='n'>" + (l.revenue ? Number(l.revenue).toFixed(2) : "—") + "</td>"
-        + "<td><button class='btn sm' data-id='" + esc(l.lead_id) + "'>تسجيل</button></td></tr>";
+      var d = l.date || "غير محدد";
+      if (!groups[d]) { groups[d] = []; }
+      groups[d].push(l);
     });
-    host.innerHTML = h + "</tbody></table>";
+
+    var dates = Object.keys(groups).sort().reverse();
+    var html = "";
+    dates.forEach(function (dateKey) {
+      var dayRows = groups[dateKey];
+      html += "<div class='date-group'>"
+        + "<div class='date-group-header'>"
+        + "<span>📅 " + esc(formatArabicDate(dateKey)) + "</span>"
+        + "<span class='pill primary'>" + dayRows.length + " ليد</span>"
+        + "</div>"
+        + "<div class='tw'><table><thead><tr><th>رقم الليد</th><th>الزبون</th><th class='n'>الهاتف</th>"
+        + "<th>الصف</th><th>الحاجة</th><th>المروّج</th><th>الحالة</th>"
+        + "<th>24 ساعة</th><th>ملاحظة المروّج</th>"
+        + "<th class='n'>الإيراد</th><th></th></tr></thead><tbody>";
+
+      dayRows.forEach(function (l) {
+        var w = l.within_24h;
+        var wp = w === "Yes" ? "good" : (w === "Pending" ? "warn" : "bad");
+        var wt = { "Yes": "نعم", "No": "لا", "Pending": "بالانتظار" }[w] || w;
+        html += "<tr><td class='mono' style='font-size:11px'>" + esc(l.lead_id) + "</td>"
+          + "<td><strong>" + esc(l.customer_name || "—") + "</strong></td>"
+          + "<td class='n'>" + esc(l.phone || "—") + "</td>"
+          + "<td>" + esc(L("grade", l.grade)) + "</td>"
+          + "<td>" + esc(L("interest", l.interest)) + "</td>"
+          + "<td>" + esc(l.promoter) + "</td>"
+          + "<td>" + statusPill(l.status) + "</td>"
+          + "<td><span class='pill " + wp + "'>" + wt + "</span></td>"
+          + "<td class='notecell'>" + esc(l.promoter_note || "") + "</td>"
+          + "<td class='n'>" + (l.revenue ? Number(l.revenue).toFixed(2) : "—") + "</td>"
+          + "<td><button class='btn sm' data-id='" + esc(l.lead_id) + "'>تسجيل</button></td></tr>";
+      });
+
+      html += "</tbody></table></div></div>";
+    });
+
+    host.innerHTML = html;
     Array.prototype.forEach.call(host.querySelectorAll("button[data-id]"), function (b) {
       b.addEventListener("click", function () { openDrawer(b.dataset.id); });
     });
@@ -308,6 +451,34 @@
       }).join("");
     sf.addEventListener("change", renderLeads);
     $("search").addEventListener("input", renderLeads);
+
+    var qdf = $("queueDateFilter");
+    if (qdf) {
+      qdf.addEventListener("change", function () {
+        var isCustom = qdf.value === "custom";
+        $("queueDateFrom").classList.toggle("hide", !isCustom);
+        $("queueDateTo").classList.toggle("hide", !isCustom);
+        renderQueue();
+      });
+      $("queueDateFrom").addEventListener("change", function () { renderQueue(); });
+      $("queueDateTo").addEventListener("change", function () { renderQueue(); });
+      $("queueDateFrom").addEventListener("input", function () { renderQueue(); });
+      $("queueDateTo").addEventListener("input", function () { renderQueue(); });
+    }
+
+    var ldf = $("leadsDateFilter");
+    if (ldf) {
+      ldf.addEventListener("change", function () {
+        var isCustom = ldf.value === "custom";
+        $("leadsDateFrom").classList.toggle("hide", !isCustom);
+        $("leadsDateTo").classList.toggle("hide", !isCustom);
+        renderLeads();
+      });
+      $("leadsDateFrom").addEventListener("change", function () { renderLeads(); });
+      $("leadsDateTo").addEventListener("change", function () { renderLeads(); });
+      $("leadsDateFrom").addEventListener("input", function () { renderLeads(); });
+      $("leadsDateTo").addEventListener("input", function () { renderLeads(); });
+    }
 
     Array.prototype.forEach.call(document.querySelectorAll(".cur"), function (e) {
       e.textContent = CFG.currency;

@@ -748,7 +748,7 @@ def sla_queue(data):
             issue = ""
 
         rows.append({
-            "lead_id": l["lead_id"], "ts": l["ts"].strftime("%Y-%m-%d %H:%M"),
+            "lead_id": l["lead_id"], "date": l["date"], "ts": l["ts"].strftime("%Y-%m-%d %H:%M"),
             "customer_name": l["customer_name"], "phone": l["phone_norm"],
             "promoter_name": l["promoter_name"], "branch_name": l["branch_name"],
             "grade": l["grade"], "interest": l["interest"],
