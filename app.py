@@ -1039,6 +1039,28 @@ def _in_use(conn, column, value):
     return n
 
 
+@app.route("/api/export/database.db")
+@require("manager")
+def export_database():
+    """Full backup: a consistent snapshot of the whole SQLite database
+    (leads, shifts, followups, costs, setup) as one downloadable file."""
+    import sqlite3, tempfile
+    fd, tmp = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        src = db.connect()
+        dst = sqlite3.connect(tmp)
+        src.backup(dst)
+        dst.close()
+        src.close()
+        with open(tmp, "rb") as f:
+            blob = f.read()
+    finally:
+        os.remove(tmp)
+    return Response(blob, mimetype="application/octet-stream", headers={
+        "Content-Disposition": "attachment; filename=abwab_full_backup.db"})
+
+
 @app.route("/api/storage")
 @require("manager")
 def storage_status():
